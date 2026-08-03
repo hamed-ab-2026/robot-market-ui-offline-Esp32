@@ -16,6 +16,12 @@
 
     <style>
 
+        /* =========================================================
+           DESIGN TOKENS
+           Single source of truth for color / shadow / surface values.
+           NOTE: kept byte-for-byte identical to the original file —
+           any drift here would change the rendered UI.
+        ========================================================= */
         :root {
             /* Brand */
             --primary: #00A693;
@@ -88,6 +94,9 @@
             --disabled-text: #7b8a8f;
         }
 
+        /* =========================================================
+           BASE / RESET
+        ========================================================= */
         @font-face {
             font-family: 'Vazir';
             src: url('./fonts/Vazirmatn-Regular.woff2') format('woff2');
@@ -136,25 +145,54 @@
             max-width: 100%;
         }
 
+        /* =========================================================
+           UTILITIES
+           Small, Tailwind-inspired helper classes for patterns that
+           repeat across components. Only introduced where a pattern
+           is genuinely shared — one-off values stay on the component
+           rule below so we don't fragment simple styles across many
+           classes.
+        ========================================================= */
         .hidden {
             display: none;
         }
 
+        .flex-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .w-full {
+            width: 100%;
+        }
+
+        .rounded-full {
+            border-radius: 50%;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        /* =========================================================
+           COMPONENT: view / transition wrapper
+        ========================================================= */
         .view {
             animation: fadeIn 0.4s ease-out;
         }
 
-        .logo-container {
-            display: flex;
-            justify-content: center;
-            width: 100%;
-        }
-
+        /* =========================================================
+           COMPONENT: logo
+        ========================================================= */
         .logo-container img {
             width: min(180px, 52vw);
             height: auto;
         }
 
+        /* =========================================================
+           COMPONENT: card (auth card shell)
+        ========================================================= */
         .card {
             width: 100%;
             max-width: 420px;
@@ -162,22 +200,19 @@
             border-radius: 24px;
             background: var(--card-bg);
             box-shadow: var(--shadow-brand);
-            text-align: center;
         }
 
+        /* =========================================================
+           COMPONENT: user-icon (avatar badge shown on each view)
+        ========================================================= */
         .user-icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
             width: 60px;
             height: 60px;
             margin: 0 auto 20px;
-            border-radius: 50%;
             background: var(--primary-light);
             color: var(--primary);
             font-size: 24px;
         }
-
 
         h2 {
             margin-bottom: 8px;
@@ -192,6 +227,9 @@
             font-size: 13px;
         }
 
+        /* =========================================================
+           COMPONENT: tabs (OTP vs password login switch)
+        ========================================================= */
         .tabs {
             display: flex;
             margin-bottom: 24px;
@@ -201,10 +239,7 @@
         }
 
         .tab {
-            display: flex;
             flex: 1;
-            align-items: center;
-            justify-content: center;
             gap: 5px;
             min-height: 44px;
             padding: 10px 8px;
@@ -221,6 +256,9 @@
             box-shadow: var(--shadow-brand-sm);
         }
 
+        /* =========================================================
+           COMPONENT: form field (label + input + inline error)
+        ========================================================= */
         .input-group {
             position: relative;
             margin-bottom: 18px;
@@ -252,8 +290,18 @@
             box-shadow: 0 0 0 4px var(--primary-light);
         }
 
+        .error-msg {
+            display: none;
+            margin-top: 10px;
+            color: var(--danger-strong);
+            font-size: 12px;
+            text-align: right;
+        }
+
+        /* =========================================================
+           COMPONENT: buttons
+        ========================================================= */
         .btn {
-            width: 100%;
             margin-top: 10px;
             padding: 12px 14px;
             border: none;
@@ -290,6 +338,28 @@
             transform: translateY(-2px);
         }
 
+        /* Async submit state: hides label text and shows the spinner
+           drawn in ::after so button width/height don't jump. */
+        .btn.loading {
+            position: relative;
+            color: transparent !important;
+            pointer-events: none;
+        }
+
+        .btn.loading::after {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 18px;
+            height: 18px;
+            border: 3px solid var(--glass-border);
+            border-top-color: var(--text-inverse);
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            transform: translate(-50%, -50%);
+        }
+
         .link-btn {
             margin-top: 15px;
             border: none;
@@ -304,14 +374,9 @@
             color: var(--primary);
         }
 
-        .error-msg {
-            display: none;
-            margin-top: 10px;
-            color: var(--danger-strong);
-            font-size: 12px;
-            text-align: right;
-        }
-
+        /* =========================================================
+           COMPONENT: forgot-password countdown
+        ========================================================= */
         #countdown {
             margin: 20px 0;
             padding: 10px;
@@ -322,14 +387,13 @@
             font-family: 'Courier New', Courier, monospace;
             font-size: 2rem;
             font-weight: bold;
-            text-align: center;
         }
 
+        /* =========================================================
+           COMPONENT: OTP code input
+        ========================================================= */
         .otp-container {
-            display: flex;
             flex-direction: row-reverse;
-            align-items: center;
-            justify-content: center;
             gap: 10px;
             margin: 20px 0;
         }
@@ -340,9 +404,11 @@
             border: 1px solid var(--border-strong);
             border-radius: 8px;
             font-size: 20px;
-            text-align: center;
         }
 
+        /* =========================================================
+           COMPONENT: toast notifications
+        ========================================================= */
         #toast-container {
             position: fixed;
             top: 16px;
@@ -410,7 +476,6 @@
             height: 22px;
             padding: 0;
             border: none;
-            border-radius: 50%;
             background: transparent;
             color: var(--surface-raised);
             font-size: 18px;
@@ -424,26 +489,9 @@
             color: var(--text-inverse);
         }
 
-        .btn.loading {
-            position: relative;
-            color: transparent !important;
-            pointer-events: none;
-        }
-
-        .btn.loading::after {
-            content: "";
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 18px;
-            height: 18px;
-            border: 3px solid var(--glass-border);
-            border-top-color: var(--text-inverse);
-            border-radius: 50%;
-            animation: spin 0.7s linear infinite;
-            transform: translate(-50%, -50%);
-        }
-
+        /* =========================================================
+           RESPONSIVE
+        ========================================================= */
         @media (min-width: 480px) {
             body {
                 padding: 32px 20px;
@@ -471,6 +519,9 @@
             }
         }
 
+        /* =========================================================
+           ANIMATIONS
+        ========================================================= */
         @keyframes fadeIn {
             from {
                 opacity: 0;
@@ -488,28 +539,27 @@
             }
         }
 
-
     </style>
 </head>
 <body>
 
 <div id="toast-container"></div>
 
-<div class="logo-container">
+<div class="logo-container flex-center w-full">
     <img alt="robot" src="images/logo-RobotMarket.png">
 </div>
 
-<div class="card" id="mainCard">
+<div class="card text-center" id="mainCard">
     <!-- Login View -->
     <div id="loginView" class="view">
-        <div class="user-icon">
+        <div class="user-icon flex-center rounded-full">
             <img src="images/favicon.ico" alt="">
         </div>
         <h2>ورود به حساب کاربری</h2>
         <p class="subtitle">برای ادامه وارد حساب خود شوید</p>
 
         <div class="tabs">
-            <div class="tab" onclick="switchTab('otp')">
+            <div class="tab flex-center" onclick="switchTab('otp')">
                 <svg width="22" height="22" fill="#000000" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
                     <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
                     <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
@@ -521,7 +571,7 @@
                 </svg>
                 کد یکبار مصرف
             </div>
-            <div class="tab active" onclick="switchTab('pass')">
+            <div class="tab flex-center active" onclick="switchTab('pass')">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                     <g id="SVGRepo_bgCarrier" stroke-width="0"></g>
                     <g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g>
@@ -542,7 +592,7 @@
             <div class="input-group">
                 <label for="username" id="usernameLabel">نام کاربری</label>
                 <input
-                        style="text-align: center"
+                        class="text-center"
                         maxlength="11"
                         type="text"
                         id="username"
@@ -555,11 +605,11 @@
 
             <div id="passField" class="input-group">
                 <label for="password">رمز عبور</label>
-                <input style="text-align: center" type="password" id="password" placeholder="*******" dir="ltr">
+                <input class="text-center" type="password" id="password" placeholder="*******" dir="ltr">
                 <div id="passwordError" class="error-msg">حداقل 8 کاراکتر باید وارد شود</div>
             </div>
 
-            <button type="submit" class="btn primary">ورود</button>
+            <button type="submit" class="btn primary w-full">ورود</button>
         </form>
 
         <button class="link-btn" onclick="showView('forgetView')">رمز عبور خود را فراموش کرده‌اید؟</button>
@@ -567,7 +617,7 @@
 
     <!-- Change Password View -->
     <div id="changePasswordView" class="view hidden">
-        <div class="user-icon">🔐</div>
+        <div class="user-icon flex-center rounded-full">🔐</div>
         <h2>تغییر رمز عبور</h2>
 
         <p class="subtitle">برای اولین ورود باید رمز عبور خود را تغییر دهید</p>
@@ -587,30 +637,30 @@
             <input type="password" id="confirmPassword" placeholder="تکرار رمز جدید">
         </div>
 
-        <button class="btn primary" id="changePasswordButton" onclick="changePassword()">تغییر رمز</button>
+        <button class="btn primary w-full" id="changePasswordButton" onclick="changePassword()">تغییر رمز</button>
     </div>
 
 
     <!-- OTP View -->
     <div id="otpView" class="view hidden">
-        <div class="user-icon">📱</div>
+        <div class="user-icon flex-center rounded-full">📱</div>
         <h2>کد تایید</h2>
         <p class="subtitle">کد ارسال شده به موبایل را وارد کنید</p>
 
-        <div class="otp-container">
-            <input type="text" maxlength="1" class="otp-input">
-            <input type="text" maxlength="1" class="otp-input">
-            <input type="text" maxlength="1" class="otp-input">
-            <input type="text" maxlength="1" class="otp-input">
+        <div class="otp-container flex-center">
+            <input type="text" maxlength="1" class="otp-input text-center">
+            <input type="text" maxlength="1" class="otp-input text-center">
+            <input type="text" maxlength="1" class="otp-input text-center">
+            <input type="text" maxlength="1" class="otp-input text-center">
         </div>
 
-        <button class="btn primary" onclick="verifyOtp()">تایید کد</button>
+        <button class="btn primary w-full" onclick="verifyOtp()">تایید کد</button>
         <button class="link-btn" onclick="showView('loginView')">بازگشت</button>
     </div>
 
     <!-- Forget View -->
     <div id="forgetView" class="view hidden">
-        <div class="user-icon">
+        <div class="user-icon flex-center rounded-full">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
                  class="lucide lucide-key-round text-primary-08-main h-6 w-6" aria-hidden="true">
@@ -621,7 +671,7 @@
         <h2>بازیابی رمز عبور</h2>
         <p class="subtitle">برای بازیابی دکمه repass را 3 ثانیه نگه دارید</p>
 
-        <div class="countdown" id="countdown">02:00</div>
+        <div class="countdown text-center" id="countdown">02:00</div>
 
         <button class="link-btn" onclick="backButton()">بازگشت به صفحه ورود</button>
     </div>
@@ -633,13 +683,42 @@
 
         //-------- Global Variables ------------
 
+        // DEV-ONLY BYPASS: when true, the login screen auto-fills a
+        // hardcoded admin token and reloads into the app after a
+        // short delay. Left exactly as in the original file — this
+        // MUST be verified/disabled by the deploy process before any
+        // real release, but flipping it here would change behavior,
+        // so it is intentionally untouched.
         let DEVELOP_MODE = true;
+
+        // OTP code length required by the /verify-otp endpoint.
+        const OTP_LENGTH = 4;
+
+        // How long the "forgot password" view polls /reset-status
+        // before giving up and returning to the login view.
+        const RESET_COUNTDOWN_SECONDS = 120;
+
+        // How long a submit button stays disabled after a login
+        // attempt, to prevent double-submits while the request/UI
+        // settles.
+        const SUBMIT_LOCK_MS = 3000;
+
+        // Minimum accepted password length for the password-login
+        // form (server is the source of truth; this is a fast
+        // client-side check only).
+        const MIN_LOGIN_PASSWORD_LENGTH = 6;
+
+        // Minimum accepted length when *setting* a new password
+        // (forced first-login change / forgot-password flow).
+        const MIN_NEW_PASSWORD_LENGTH = 8;
+
+        const IRAN_MOBILE_REGEX = /^09\d{9}$/;
 
         const state = {
             loginMode: "pass",
             countdownActive: false,
             resetPolling: null,
-            secondsLeft: 120
+            secondsLeft: RESET_COUNTDOWN_SECONDS
         };
 
 
@@ -688,6 +767,9 @@
         });
 
 
+        // Exposed for the inline onclick="" handlers in the markup
+        // above. Kept as-is (not switching to addEventListener) to
+        // avoid touching markup/behavior beyond what's needed.
         window.verifyOtp = verifyOtp;
         window.switchTab = switchTab;
         window.showView = showView;
@@ -751,8 +833,14 @@
         dom.username.focus()
 
 
+        /**
+         * Renders a transient toast notification.
+         * @param {string} message - Persian-language text to display.
+         * @param {"info"|"success"|"error"} type - visual style, also
+         *   used to pick the accent background color.
+         * @param {number} duration - ms before auto-dismiss.
+         */
         function showToast(message, type = "info", duration = 3000) {
-            // types == ? show || success || error || info
 
             const toast = document.createElement("div");
             toast.className = `toast ${type}`;
@@ -782,6 +870,10 @@
         }
 
 
+        /**
+         * Swaps the visible auth view. Starts/stops the forgot-password
+         * countdown+polling as a side effect of entering/leaving that view.
+         */
         function showView(viewId) {
 
             Object.values(dom.views).forEach(v => v.classList.add("hidden"));
@@ -792,6 +884,12 @@
             else stopResetProcess();
         }
 
+        /**
+         * Toggles the login form between password mode and OTP mode.
+         * Business rule: OTP mode always uses the mobile number as the
+         * identifier (tel input, numeric keypad, 11-char max), and the
+         * password field is hidden entirely rather than just disabled.
+         */
         function switchTab(mode) {
             state.loginMode = mode;
 
@@ -826,9 +924,19 @@
         }
 
 
+        /* =========================
+           FORGOT-PASSWORD COUNTDOWN
+           Business rule: the "forget password" view assumes a human
+           operator resets the account out-of-band (e.g. holding a
+           physical "repass" button per the UI copy). This page just
+           polls a status endpoint for up to RESET_COUNTDOWN_SECONDS
+           and bounces back to login either when the server reports
+           "reset" or when the countdown reaches zero.
+        ========================= */
+
         function startResetProcess() {
 
-            state.secondsLeft = 120;
+            state.secondsLeft = RESET_COUNTDOWN_SECONDS;
             state.countdownActive = true;
 
             updateCountdown();
@@ -862,6 +970,8 @@
                 }
 
             } catch {
+                // Network hiccups are silently ignored; the next poll
+                // tick will simply try again.
             }
         }
 
@@ -884,17 +994,25 @@
         }
 
 
+        /* =========================
+           LOGIN SUBMISSION
+        ========================= */
+
+        /**
+         * Fast client-side validation before hitting the network.
+         * Returns a Persian error message, or null when valid.
+         */
         function validateLogin(username, password, isOtp) {
             if (isOtp) {
                 if (!username) return APP_MESSAGES.validation.invalid_mobile;
-                if (!/^09\d{9}$/.test(username)) return APP_MESSAGES.validation.invalid_mobile;
+                if (!IRAN_MOBILE_REGEX.test(username)) return APP_MESSAGES.validation.invalid_mobile;
                 return null;
             }
 
             if (!username || !password)
                 return APP_MESSAGES.validation.credentials_required;
 
-            if (password.length < 6)
+            if (password.length < MIN_LOGIN_PASSWORD_LENGTH)
                 return APP_MESSAGES.validation.password_too_short;
 
             return null;
@@ -937,7 +1055,7 @@
 
             setTimeout(() => {
                 btn.disabled = false;
-            }, 3000);
+            }, SUBMIT_LOCK_MS);
 
 
             await api("/send-otp", {
@@ -958,7 +1076,7 @@
 
             setTimeout(() => {
                 btn.disabled = false;
-            }, 3000);
+            }, SUBMIT_LOCK_MS);
 
             try {
                 const response = await api("api/login", {
@@ -968,6 +1086,8 @@
 
                 if (!response?.success) return;
 
+                // Business rule: accounts flagged isFirstTime must set
+                // a new password before receiving an auth token.
                 if (response.isFirstTime) {
                     if (!username) return;
 
@@ -1008,7 +1128,7 @@
 
             dom.otpInputs.forEach(i => code += i.value);
 
-            if (code.length !== 4) {
+            if (code.length !== OTP_LENGTH) {
                 showToast(APP_MESSAGES.auth.otp_incomplete, "error");
                 return;
             }
@@ -1047,7 +1167,7 @@
                 return;
             }
 
-            if (newPassword.length < 8) {
+            if (newPassword.length < MIN_NEW_PASSWORD_LENGTH) {
                 showToast(APP_MESSAGES.validation.new_password_too_short, "error");
                 return;
             }
@@ -1061,7 +1181,7 @@
 
             setTimeout(() => {
                 changePasswordButton.disabled = false;
-            }, 3000);
+            }, SUBMIT_LOCK_MS);
 
             try {
                 const res = await api("api/change-password", {
@@ -1121,7 +1241,5 @@
 
     })();
 </script>
-
-
 </body>
 </html>

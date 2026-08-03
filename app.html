@@ -15,6 +15,12 @@
 
     <style>
 
+        /* =========================================================
+           DESIGN TOKENS
+           Single source of truth for color / shadow / surface values
+           used across the admin panel. Values kept byte-for-byte
+           identical to the original file.
+        ========================================================= */
         :root {
             /* Brand */
             --primary: #00a693;
@@ -99,6 +105,9 @@
             box-sizing: border-box;
         }
 
+        /* =========================================================
+           BASE / RESET
+        ========================================================= */
         * {
             font-family: 'Vazir', sans-serif, Segoe UI, Tahoma, Geneva, Verdana;
         }
@@ -141,6 +150,9 @@
             display: none !important;
         }
 
+        /* =========================================================
+           COMPONENT: navbar (mobile top bar + desktop sidebar)
+        ========================================================= */
         .mobile-navbar {
             position: fixed;
             top: 0;
@@ -397,6 +409,9 @@
             background: var(--card-bg);
         }
 
+        /* =========================================================
+           COMPONENT: card shell + generic form controls
+        ========================================================= */
         .card {
             margin-bottom: 20px;
             padding: 16px;
@@ -586,6 +601,9 @@
             width: 100%;
         }
 
+        /* =========================================================
+           COMPONENT: modal / dialog
+        ========================================================= */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -619,21 +637,10 @@
             color: #555;
         }
 
-        .toggle-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
         .modal-actions {
             display: flex;
             gap: 8px;
             margin-top: 18px;
-        }
-
-        .btn-danger {
-            background: #fdecea;
-            color: #d93025;
         }
 
         th,
@@ -674,6 +681,9 @@
             text-align: center;
         }
 
+        /* =========================================================
+           COMPONENT: full-page loading spinner
+        ========================================================= */
         #loader {
             position: fixed;
             inset: 0;
@@ -761,6 +771,9 @@
             text-align: left;
         }
 
+        /* =========================================================
+           COMPONENT: drawer (collapsible details panel)
+        ========================================================= */
         .drawer {
             margin-bottom: 10px;
             overflow: hidden;
@@ -824,6 +837,9 @@
             font-weight: 500;
         }
 
+        /* =========================================================
+           COMPONENT: toggle switch
+        ========================================================= */
         .switch-row {
             display: flex;
             align-items: center;
@@ -832,51 +848,9 @@
             padding: 10px 0;
         }
 
-        .switch {
-            position: relative;
-            display: inline-block;
-            flex: none;
-            width: 44px;
-            height: 22px;
-        }
-
-        .slider {
-            position: absolute;
-            inset: 0;
-            border-radius: 34px;
-            background-color: var(--disabled-control);
-            cursor: pointer;
-            transition: 0.4s;
-        }
-
-        .slider:before {
-            content: "";
-            position: absolute;
-            bottom: 3px;
-            left: 3px;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background-color: white;
-            transition: 0.4s;
-        }
-
-        input:checked + .slider {
-            background-color: var(--primary);
-        }
-
-        input:checked + .slider:before {
-            transform: translateX(22px);
-        }
-
-        .status-badge {
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 11px;
-            font-weight: bold;
-        }
-
-
+        /* =========================================================
+           COMPONENT: toast / status badge / notifications
+        ========================================================= */
         .toast-content {
             flex: 1;
         }
@@ -936,6 +910,12 @@
             margin: 0;
         }
 
+        /* =========================================================
+           COMPONENT: app-level confirm/alert modal
+           (separate from .modal-overlay above — used for simple
+           confirmation dialogs raised from JS, e.g. destructive
+           actions)
+        ========================================================= */
         .app-modal {
             position: fixed;
             inset: 0;
@@ -980,28 +960,11 @@
             gap: 10px;
         }
 
-        .dashboard-compact {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
         .mini-grid {
             display: grid;
             grid-template-columns: repeat(1, 1fr);
             gap: 10px;
             font-size: 12px;
-        }
-
-        .mini-card {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            min-height: 58px;
-            padding: 10px;
-            overflow: hidden;
-            border-radius: 16px;
-            box-shadow: var(--shadow-md);
         }
 
         .mini-card.disconnected {
@@ -1047,12 +1010,6 @@
             color: var(--text-heading);
         }
 
-        .compact-card {
-            padding: 12px;
-            border-radius: 18px;
-            box-shadow: var(--shadow-md);
-        }
-
         .section-title {
             display: flex;
             align-items: center;
@@ -1070,15 +1027,6 @@
             font-weight: 600;
         }
 
-
-        .input-select {
-            width: 100%;
-            padding: 12px;
-            border-radius: 12px;
-            border: 2px solid var(--border);
-            background: var(--bg);
-            font-family: inherit;
-        }
 
         .product-icon {
             font-size: 1.2rem;
@@ -1136,6 +1084,7 @@
             padding: 10px;
             border-radius: 8px;
             border: 1px solid var(--border);
+            background: var(--bg);
             font-family: inherit;
         }
 
@@ -1151,6 +1100,7 @@
         .switch {
             position: relative;
             display: inline-block;
+            flex: none;
             width: 46px;
             height: 24px;
         }
@@ -1197,7 +1147,7 @@
         }
 
         input:checked + .slider {
-            background: #00a693;
+            background: var(--primary);
         }
 
         input:checked + .slider:before {
@@ -1268,7 +1218,13 @@
             line-height: 1.8;
         }
 
+        /* =========================================================
+           PAGE: dashboard widgets (mini-cards, top bar, downloads)
+        ========================================================= */
         .dashboard-compact {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
             padding: 16px;
             background: var(--bg);
         }
@@ -1308,13 +1264,16 @@
         }
 
         .mini-card {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-height: 58px;
+            padding: 12px;
+            overflow: hidden;
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 12px;
-            display: flex;
-            gap: 10px;
-            align-items: center;
         }
 
         .compact-card {
@@ -1329,13 +1288,6 @@
             font-weight: 600;
             margin-bottom: 10px;
             color: var(--primary);
-        }
-
-
-        .status-badge {
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 12px;
         }
 
 
@@ -1397,6 +1349,9 @@
             transform: scale(1.2);
         }
 
+        /* =========================================================
+           PAGE: Wi-Fi network list (device info / setup page)
+        ========================================================= */
         .wifi-list {
             display: flex;
             flex-direction: column;
@@ -1511,6 +1466,9 @@
             cursor: pointer;
         }
 
+        /* =========================================================
+           COMPONENT: sales trend chart card
+        ========================================================= */
         .sales-trend-card {
             padding: 14px;
         }
@@ -1529,6 +1487,12 @@
         }
 
         .sales-trend-header small {
+            /* NOTE: --muted is not defined in :root (likely meant
+               --text-muted). Left exactly as-is — this is a
+               pre-existing bug and "fixing" it would change the
+               rendered color, which is out of scope for a
+               behavior-preserving refactor. Flagging for a future,
+               deliberate fix. */
             color: var(--muted);
             font-size: 12px;
         }
@@ -1540,6 +1504,9 @@
             margin-bottom: 8px;
         }
 
+        /* =========================================================
+           PAGE: dashboard layout & metric grid
+        ========================================================= */
         .dashboard-container {
             direction: rtl;
         }
@@ -2507,6 +2474,14 @@
                   `,
     };
 
+    // =========================================================
+    //   DEV-ONLY MOCK DATA (~1,600 lines)
+    //   Used only when DEVELOP_MODE === true, as a stand-in for
+    //   the real API responses (one key per page: dashboard,
+    //   prices, info, service_configuration, clients, settings,
+    //   factory, balance). Skip past the matching END marker
+    //   below to get to the actual application logic.
+    // =========================================================
     const mock_data = {
         dashboard: {
             "today": {
@@ -4118,31 +4093,22 @@
             ota_cert: ""
         },
     }
+    // =========================================================
+    //   END DEV-ONLY MOCK DATA
+    // =========================================================
 
     // -------------End of Global Variables----------
 
 
-    /**
-     * نمایش یا مخفی‌کردن لودر صفحه
-     * @param {boolean} show - اگر true باشد لودر نمایش داده می‌شود، در غیر این صورت مخفی می‌شود
-     */
-    function showLoader(show) {
-        loader.classList.toggle("hidden", !show);
-    }
 
+    // =========================================================
+    //   SHARED HELPERS
+    //   Used by the router and/or by more than one page module.
+    //   Page-specific helpers stay next to the render*() function
+    //   that owns them, further down in this file.
+    // =========================================================
 
-    //---- شروع بخش مخصوص تست دولوپر ----
-
-    function applyDevMode() {
-        const devNavItem = document.querySelector('a[href="#/dev"]');
-        if (devNavItem) {
-            // اگر DEVELOP_MODE فعال نباشد، کلاس hidden اضافه می‌شود تا لینک مخفی شود
-            devNavItem.classList.toggle("hidden", !DEVELOP_MODE);
-        }
-    }
-
-    //---- پایان بخش مخصوص تست دولوپر ----
-
+    // -- Icon system --
     /**
      * یک آیکون SVG را بر اساس نام از مجموعه ICONS برمی‌گرداند و اندازه، کلاس و ضخامت خط آن را تنظیم می‌کند.
      *
@@ -4182,19 +4148,29 @@
         });
     }
 
-    document.addEventListener("DOMContentLoaded", () => {
-        renderIcons();
-    })
+    // -- Global loading spinner --
+    /**
+     * نمایش یا مخفی‌کردن لودر صفحه
+     * @param {boolean} show - اگر true باشد لودر نمایش داده می‌شود، در غیر این صورت مخفی می‌شود
+     */
+    function showLoader(show) {
+        loader.classList.toggle("hidden", !show);
+    }
 
+    // -- Dev-mode nav link --
+    //---- شروع بخش مخصوص تست دولوپر ----
 
-    // ====================  (Routing) ====================
+    function applyDevMode() {
+        const devNavItem = document.querySelector('a[href="#/dev"]');
+        if (devNavItem) {
+            // اگر DEVELOP_MODE فعال نباشد، کلاس hidden اضافه می‌شود تا لینک مخفی شود
+            devNavItem.classList.toggle("hidden", !DEVELOP_MODE);
+        }
+    }
 
-    applyDevMode();
+    //---- پایان بخش مخصوص تست دولوپر ----
 
-    window.addEventListener("hashchange", router);
-
-    window.addEventListener("load", router);
-
+    // -- Mobile nav drawer (used by every page's navbar) --
     function toggleMenu() {
         const nav = document.getElementById("mainNav");
         const overlay = document.getElementById("overlay");
@@ -4210,6 +4186,389 @@
         nav.classList.remove("active");
         overlay.classList.remove("active");
     });
+
+    // -- Persistent navbar user-menu dropdown (every page) --
+    function toggleUserMenu(event) {
+        const dropdown = event?.currentTarget?.querySelector(".user-dropdown");
+
+        dropdown.classList.toggle("open");
+    }
+
+    function rebootSystem() {
+        showModal({
+            message: "آیا از ری‌استارت سیستم مطمئن هستید؟",
+            type: "reboot",
+            onConfirm: async () => {
+                let seconds = 10;
+
+                showModal({
+                    message: `
+                              <div style="text-align:center">
+
+                                  <div class="spinner" style="margin:10px auto;"></div>
+
+                                  <div>
+                                      سیستم در حال ری‌استارت است... <br>
+                                      لطفاً صبر کنید.
+                                  </div>
+
+                                  <br>
+
+                                  <div>
+                                      راه‌اندازی مجدد تا
+                                      <b id="rebootCounter">${seconds}</b>
+                                      ثانیه دیگر انجام می‌شود
+                                  </div>
+
+                              </div>
+                          `,
+                    type: "reboot",
+                    showConfirm: false,
+                });
+
+                const interval = setInterval(() => {
+                    seconds--;
+
+                    const counter = document.getElementById("rebootCounter");
+                    if (counter) counter.textContent = seconds;
+
+                    if (seconds <= 0) {
+                        clearInterval(interval);
+                        location.reload();
+                    }
+                }, 1000);
+            },
+        });
+    }
+
+    // -- Generic collapsible drawer (info / settings / factory / service-configuration pages) --
+    function toggleDrawer(id) {
+        const el = document.getElementById(id);
+        const allDrawers = document.querySelectorAll(".drawer-content");
+
+        allDrawers.forEach((d) => {
+            if (d.id !== id) d.style.display = "none";
+        });
+
+        el.style.display = el.style.display === "block" ? "none" : "block";
+    }
+
+    // -- Generic confirm/action modal (balance / clients / factory / prices / settings pages) --
+    /**
+     * یک مودال (پنجره‌ی گفتگو) سفارشی روی صفحه نمایش می‌دهد که می‌تواند
+     * پیام، آیکون متناسب با نوع، دکمه‌های تایید/لغو و محتوای HTML اضافی داشته باشد.
+     *
+     * @param {Object} params - تنظیمات مودال.
+     * @param {string} [params.message=""] - متن پیامی که داخل مودال نمایش داده می‌شود (پشتیبانی از HTML).
+     * @param {"info"|"noType"|"success"|"warning"|"danger"|"reboot"} [params.type="info"] - نوع مودال که رنگ و آیکون آن را مشخص می‌کند.
+     * @param {?Function} [params.onConfirm=null] - تابعی که با کلیک روی دکمه‌ی «تایید» اجرا می‌شود؛ خود المان مودال به‌عنوان آرگومان به آن پاس داده می‌شود.
+     * @param {?Function} [params.onCancel=null] - تابعی که با کلیک روی دکمه‌ی «لغو» اجرا می‌شود.
+     * @param {boolean} [params.showConfirm=true] - در صورت true بودن، دکمه‌های تایید و لغو نمایش داده می‌شوند.
+     * @param {string} [params.extraHtml=""] - محتوای HTML اضافی که بین پیام و دکمه‌ها درج می‌شود (مثلاً فرم یا توضیحات بیشتر).
+     * @returns {void}
+     */
+    function showModal({
+                           message = "",
+                           type = "info",
+                           onConfirm = null,
+                           onCancel = null,
+                           showConfirm = true,
+                           extraHtml = "",
+                       }) {
+        const types = {
+            info: {color: "var(--info)", icon: getIcon("info")},
+            noType: {color: "", icon: ""},
+            success: {color: "var(--success)", icon: getIcon("success")},
+            warning: {color: "var(--warning)", icon: getIcon("warning")},
+            danger: {color: "var(--danger)", icon: getIcon("danger")},
+            reboot: {color: "var(--info)", icon: getIcon("refresh")},
+        };
+
+        const t = types[type] || types.info;
+
+        const modal = document.createElement("div");
+        modal.className = "app-modal";
+
+        modal.innerHTML = `
+              <div class="app-modal-box">
+
+                  <div class="app-modal-header" style="color:${t.color}">
+                      <span class="app-modal-icon">${t.icon}</span>
+                  </div>
+
+                  <div class="app-modal-message">
+                      ${message}
+                  </div>
+
+                  ${extraHtml}
+
+                  ${
+            showConfirm
+                ? `
+                      <div class="app-modal-actions">
+                          <button class="btn modal-confirm"> تایید</button>
+                          <button class="btn btn-outline modal-cancel">لغو</button>
+                      </div>
+                      `
+                : ""
+        }
+
+              </div>
+              `;
+
+        document.body.appendChild(modal);
+
+        if (showConfirm) {
+            const cancelBtn = modal.querySelector(".modal-cancel");
+            const confirmBtn = modal.querySelector(".modal-confirm");
+
+            cancelBtn.onclick = () => {
+                modal.remove();
+                if (onCancel) onCancel();
+            };
+
+            confirmBtn.onclick = () => {
+                if (onConfirm) onConfirm(modal);
+            };
+        }
+    }
+
+    // -- Generic label/value row renderer (info / service-configuration pages) --
+    function infoItem(label, value) {
+        return `
+                      <p>
+                      <strong>${label}:</strong>
+                      <span>${value ?? " - "}</span>
+                      </p>
+                      `;
+    }
+
+    // -- Router support --
+    function updateActiveNav(route) {
+        document.querySelectorAll(".nav-item").forEach((el) => {
+            el.classList.toggle("active", el.getAttribute("href") === route);
+        });
+    }
+
+    function updateNotifBadge(count) {
+        const badges = document.querySelectorAll(".notif-badge");
+
+        badges.forEach((badge) => {
+            if (count > 0) {
+                badge.textContent = count;
+                badge.classList.remove("hidden");
+            } else {
+                badge.classList.add("hidden");
+            }
+        });
+    }
+
+    // -- Core network / notification / session infra --
+    // --- Helper Functions ---
+
+    async function api(url, method = "GET", data = null) {
+
+        const options = {
+            method,
+            headers: {
+                Authorization: "Bearer " + localStorage.getItem("rm_token"),
+            },
+        };
+        if (data) {
+            options.headers["Content-Type"] = "application/json";
+            options.body = JSON.stringify(data);
+        }
+        try {
+            const res = await fetch(url, options);
+
+            if (res.status === 401) {
+                showToast(
+                    "error",
+                    `401`,
+                    'دسترسی غیر مجاز ❌',
+                );
+                setTimeout(() => {
+                    logout();
+                }, 1000)
+
+                return;
+            }
+
+            if (res.status && res.status >= 500 && res.status < 600) {
+                const err = new Error(`خطای سرور. لطفاً کمی بعد دوباره تلاش کنید.`);
+                err.isServerError = true;
+                err.statusCode = res.status
+                throw err;
+            }
+
+            return await res.json();
+
+        } catch (e) {
+            if (e.isServerError) {
+                showToast(
+                    "error",
+                    `${e.statusCode}`,
+                    e.message,
+                );
+            } else {
+                showToast(
+                    "error",
+                    "خطا",
+                    'خطایی رخ داد. اتصال اینترنت خود را بررسی کنید.',
+                );
+            }
+            return {};
+        }
+    }
+
+    /**
+     * Toast Notification System
+     * @param {'success' | 'warning' | 'info' | 'error'} type
+     * @param {string} title
+     * @param {string} message
+     * @param {number} timeout
+     */
+    function showToast(type = "info", title = "اعلان", message = "", timeout = 5000) {
+        let stack = document.getElementById("toastStack");
+
+        if (!stack) {
+            stack = document.createElement("div");
+            stack.id = "toastStack";
+            stack.style.cssText = `
+                position: fixed;
+                top: 20px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 9999;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+                pointer-events: none;
+            `;
+            document.body.appendChild(stack);
+        }
+
+        const el = document.createElement("div");
+        el.className = `toast toast-${type}`;
+        el.style.cssText = `
+            min-width: 280px;
+            max-width: 90vw;
+            background: #fff;
+            color: #222;
+            border-radius: 14px;
+            box-shadow: 0 10px 30px rgba(0,0,0,.15);
+            padding: 14px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            pointer-events: auto;
+            transition: transform .25s ease, opacity .25s ease;
+            touch-action: pan-y;
+            border-right: 4px solid #3b82f6;
+        `;
+
+        const colors = {
+            success: "#22c55e",
+            error: "#ef4444",
+            warning: "#f59e0b",
+            info: "#3b82f6"
+        };
+
+        el.style.borderRightColor = colors[type] || colors.info;
+
+        el.innerHTML = `
+            <div class="toast-content">
+                <div class="toast-title">${title}</div>
+                <div class="toast-message" >${message}</div>
+            </div>
+            <button class="toast-close" aria-label="close" >✕</button>
+        `;
+
+        let closed = false;
+        let startX = 0;
+        let currentX = 0;
+        let isDragging = false;
+
+        const close = () => {
+            if (closed) return;
+            closed = true;
+            el.style.opacity = "0";
+            el.style.transform = "translateY(-10px) scale(.96)";
+            setTimeout(() => el.remove(), 250);
+        };
+
+        const swipeClose = (direction) => {
+            if (closed) return;
+            closed = true;
+            el.style.opacity = "0";
+            el.style.transform = `translateX(${direction > 0 ? 120 : -120}px)`;
+            setTimeout(() => el.remove(), 250);
+        };
+
+        el.querySelector(".toast-close").addEventListener("click", close);
+
+        el.addEventListener("touchstart", (e) => {
+            startX = e.touches[0].clientX;
+            currentX = startX;
+            isDragging = true;
+            el.style.transition = "none";
+        });
+
+        el.addEventListener("touchmove", (e) => {
+            if (!isDragging) return;
+            currentX = e.touches[0].clientX;
+            const diffX = currentX - startX;
+
+            el.style.transform = `translateX(${diffX}px)`;
+            el.style.opacity = `${Math.max(0.4, 1 - Math.abs(diffX) / 200)}`;
+        });
+
+        el.addEventListener("touchend", () => {
+            if (!isDragging) return;
+            isDragging = false;
+
+            const diffX = currentX - startX;
+            el.style.transition = "transform .25s ease, opacity .25s ease";
+
+            if (Math.abs(diffX) > 80) {
+                swipeClose(diffX);
+            } else {
+                el.style.transform = "translateX(0)";
+                el.style.opacity = "1";
+            }
+        });
+
+        stack.appendChild(el);
+
+        if (timeout > 0) {
+            setTimeout(close, timeout);
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem("rm_token");
+        localStorage.removeItem("rm_user");
+        window.location.href = "index.html";
+    }
+
+    // =========================================================
+    //   ROUTER / APP BOOTSTRAP
+    // =========================================================
+
+    document.addEventListener("DOMContentLoaded", () => {
+        renderIcons();
+    })
+
+
+    // ====================  (Routing) ====================
+
+    applyDevMode();
+
+    window.addEventListener("hashchange", router);
+
+    window.addEventListener("load", router);
 
     async function router() {
 
@@ -4278,58 +4637,7 @@
         }
     }
 
-    function updateActiveNav(route) {
-        document.querySelectorAll(".nav-item").forEach((el) => {
-            el.classList.toggle("active", el.getAttribute("href") === route);
-        });
-    }
 
-    function rebootSystem() {
-        showModal({
-            message: "آیا از ری‌استارت سیستم مطمئن هستید؟",
-            type: "reboot",
-            onConfirm: async () => {
-                let seconds = 10;
-
-                showModal({
-                    message: `
-                              <div style="text-align:center">
-
-                                  <div class="spinner" style="margin:10px auto;"></div>
-
-                                  <div>
-                                      سیستم در حال ری‌استارت است... <br>
-                                      لطفاً صبر کنید.
-                                  </div>
-
-                                  <br>
-
-                                  <div>
-                                      راه‌اندازی مجدد تا
-                                      <b id="rebootCounter">${seconds}</b>
-                                      ثانیه دیگر انجام می‌شود
-                                  </div>
-
-                              </div>
-                          `,
-                    type: "reboot",
-                    showConfirm: false,
-                });
-
-                const interval = setInterval(() => {
-                    seconds--;
-
-                    const counter = document.getElementById("rebootCounter");
-                    if (counter) counter.textContent = seconds;
-
-                    if (seconds <= 0) {
-                        clearInterval(interval);
-                        location.reload();
-                    }
-                }, 1000);
-            },
-        });
-    }
 
     // --- View Handlers  ---
 
@@ -4555,7 +4863,6 @@
             })
             .join("")}
                     </div>
-
 
 
                 <div class="sales-trend-meta">
@@ -5040,9 +5347,7 @@
                                 </div>
 
 
-
                          </div>
-
 
 
                           <div class="dashboard-compact">
@@ -5068,7 +5373,6 @@
                 : `<div class="empty-state">دیتایی وجود ندارد</div>`
         }
                               </div>
-
 
 
                               <div class="compact-card">
@@ -5280,19 +5584,6 @@
             "وضعیت همه پیام ها به خوانده شد تغییر کرد",
             3000,
         );
-    }
-
-    function updateNotifBadge(count) {
-        const badges = document.querySelectorAll(".notif-badge");
-
-        badges.forEach((badge) => {
-            if (count > 0) {
-                badge.textContent = count;
-                badge.classList.remove("hidden");
-            } else {
-                badge.classList.add("hidden");
-            }
-        });
     }
 
 
@@ -5740,84 +6031,6 @@
         });
     }
 
-    /**
-     * یک مودال (پنجره‌ی گفتگو) سفارشی روی صفحه نمایش می‌دهد که می‌تواند
-     * پیام، آیکون متناسب با نوع، دکمه‌های تایید/لغو و محتوای HTML اضافی داشته باشد.
-     *
-     * @param {Object} params - تنظیمات مودال.
-     * @param {string} [params.message=""] - متن پیامی که داخل مودال نمایش داده می‌شود (پشتیبانی از HTML).
-     * @param {"info"|"noType"|"success"|"warning"|"danger"|"reboot"} [params.type="info"] - نوع مودال که رنگ و آیکون آن را مشخص می‌کند.
-     * @param {?Function} [params.onConfirm=null] - تابعی که با کلیک روی دکمه‌ی «تایید» اجرا می‌شود؛ خود المان مودال به‌عنوان آرگومان به آن پاس داده می‌شود.
-     * @param {?Function} [params.onCancel=null] - تابعی که با کلیک روی دکمه‌ی «لغو» اجرا می‌شود.
-     * @param {boolean} [params.showConfirm=true] - در صورت true بودن، دکمه‌های تایید و لغو نمایش داده می‌شوند.
-     * @param {string} [params.extraHtml=""] - محتوای HTML اضافی که بین پیام و دکمه‌ها درج می‌شود (مثلاً فرم یا توضیحات بیشتر).
-     * @returns {void}
-     */
-    function showModal({
-                           message = "",
-                           type = "info",
-                           onConfirm = null,
-                           onCancel = null,
-                           showConfirm = true,
-                           extraHtml = "",
-                       }) {
-        const types = {
-            info: {color: "var(--info)", icon: getIcon("info")},
-            noType: {color: "", icon: ""},
-            success: {color: "var(--success)", icon: getIcon("success")},
-            warning: {color: "var(--warning)", icon: getIcon("warning")},
-            danger: {color: "var(--danger)", icon: getIcon("danger")},
-            reboot: {color: "var(--info)", icon: getIcon("refresh")},
-        };
-
-        const t = types[type] || types.info;
-
-        const modal = document.createElement("div");
-        modal.className = "app-modal";
-
-        modal.innerHTML = `
-              <div class="app-modal-box">
-
-                  <div class="app-modal-header" style="color:${t.color}">
-                      <span class="app-modal-icon">${t.icon}</span>
-                  </div>
-
-                  <div class="app-modal-message">
-                      ${message}
-                  </div>
-
-                  ${extraHtml}
-
-                  ${
-            showConfirm
-                ? `
-                      <div class="app-modal-actions">
-                          <button class="btn modal-confirm"> تایید</button>
-                          <button class="btn btn-outline modal-cancel">لغو</button>
-                      </div>
-                      `
-                : ""
-        }
-
-              </div>
-              `;
-
-        document.body.appendChild(modal);
-
-        if (showConfirm) {
-            const cancelBtn = modal.querySelector(".modal-cancel");
-            const confirmBtn = modal.querySelector(".modal-confirm");
-
-            cancelBtn.onclick = () => {
-                modal.remove();
-                if (onCancel) onCancel();
-            };
-
-            confirmBtn.onclick = () => {
-                if (onConfirm) onConfirm(modal);
-            };
-        }
-    }
 
     async function downloadBalanceCSV() {
 
@@ -7211,14 +7424,6 @@
 
     }
 
-    function infoItem(label, value) {
-        return `
-                      <p>
-                      <strong>${label}:</strong>
-                      <span>${value ?? " - "}</span>
-                      </p>
-                      `;
-    }
 
     async function savePrices(type = '') {
 
@@ -7278,22 +7483,6 @@
         // }, 3600);
     }
 
-    function toggleDrawer(id) {
-        const el = document.getElementById(id);
-        const allDrawers = document.querySelectorAll(".drawer-content");
-
-        allDrawers.forEach((d) => {
-            if (d.id !== id) d.style.display = "none";
-        });
-
-        el.style.display = el.style.display === "block" ? "none" : "block";
-    }
-
-    function toggleUserMenu(event) {
-        const dropdown = event?.currentTarget?.querySelector(".user-dropdown");
-
-        dropdown.classList.toggle("open");
-    }
 
     document.addEventListener("click", function (e) {
         document.querySelectorAll(".user-dropdown").forEach((drop) => {
@@ -7580,195 +7769,6 @@
                   <div class="card" style="text-align:center"><h1>${code}
                   </h1><p>صفحه مورد نظر پیدا نشد!</p></div>
                       `;
-    }
-
-    // --- Helper Functions ---
-
-    async function api(url, method = "GET", data = null) {
-
-        const options = {
-            method,
-            headers: {
-                Authorization: "Bearer " + localStorage.getItem("rm_token"),
-            },
-        };
-        if (data) {
-            options.headers["Content-Type"] = "application/json";
-            options.body = JSON.stringify(data);
-        }
-        try {
-            const res = await fetch(url, options);
-
-            if (res.status === 401) {
-                showToast(
-                    "error",
-                    `401`,
-                    'دسترسی غیر مجاز ❌',
-                );
-                setTimeout(() => {
-                    logout();
-                }, 1000)
-
-                return;
-            }
-
-            if (res.status && res.status >= 500 && res.status < 600) {
-                const err = new Error(`خطای سرور. لطفاً کمی بعد دوباره تلاش کنید.`);
-                err.isServerError = true;
-                err.statusCode = res.status
-                throw err;
-            }
-
-            return await res.json();
-
-        } catch (e) {
-            if (e.isServerError) {
-                showToast(
-                    "error",
-                    `${e.statusCode}`,
-                    e.message,
-                );
-            } else {
-                showToast(
-                    "error",
-                    "خطا",
-                    'خطایی رخ داد. اتصال اینترنت خود را بررسی کنید.',
-                );
-            }
-            return {};
-        }
-    }
-
-    function logout() {
-        localStorage.removeItem("rm_token");
-        localStorage.removeItem("rm_user");
-        window.location.href = "index.html";
-    }
-
-    /**
-     * Toast Notification System
-     * @param {'success' | 'warning' | 'info' | 'error'} type
-     * @param {string} title
-     * @param {string} message
-     * @param {number} timeout
-     */
-    function showToast(type = "info", title = "اعلان", message = "", timeout = 5000) {
-        let stack = document.getElementById("toastStack");
-
-        if (!stack) {
-            stack = document.createElement("div");
-            stack.id = "toastStack";
-            stack.style.cssText = `
-                position: fixed;
-                top: 20px;
-                left: 50%;
-                transform: translateX(-50%);
-                z-index: 9999;
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 10px;
-                pointer-events: none;
-            `;
-            document.body.appendChild(stack);
-        }
-
-        const el = document.createElement("div");
-        el.className = `toast toast-${type}`;
-        el.style.cssText = `
-            min-width: 280px;
-            max-width: 90vw;
-            background: #fff;
-            color: #222;
-            border-radius: 14px;
-            box-shadow: 0 10px 30px rgba(0,0,0,.15);
-            padding: 14px 16px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 12px;
-            pointer-events: auto;
-            transition: transform .25s ease, opacity .25s ease;
-            touch-action: pan-y;
-            border-right: 4px solid #3b82f6;
-        `;
-
-        const colors = {
-            success: "#22c55e",
-            error: "#ef4444",
-            warning: "#f59e0b",
-            info: "#3b82f6"
-        };
-
-        el.style.borderRightColor = colors[type] || colors.info;
-
-        el.innerHTML = `
-            <div class="toast-content">
-                <div class="toast-title">${title}</div>
-                <div class="toast-message" >${message}</div>
-            </div>
-            <button class="toast-close" aria-label="close" >✕</button>
-        `;
-
-        let closed = false;
-        let startX = 0;
-        let currentX = 0;
-        let isDragging = false;
-
-        const close = () => {
-            if (closed) return;
-            closed = true;
-            el.style.opacity = "0";
-            el.style.transform = "translateY(-10px) scale(.96)";
-            setTimeout(() => el.remove(), 250);
-        };
-
-        const swipeClose = (direction) => {
-            if (closed) return;
-            closed = true;
-            el.style.opacity = "0";
-            el.style.transform = `translateX(${direction > 0 ? 120 : -120}px)`;
-            setTimeout(() => el.remove(), 250);
-        };
-
-        el.querySelector(".toast-close").addEventListener("click", close);
-
-        el.addEventListener("touchstart", (e) => {
-            startX = e.touches[0].clientX;
-            currentX = startX;
-            isDragging = true;
-            el.style.transition = "none";
-        });
-
-        el.addEventListener("touchmove", (e) => {
-            if (!isDragging) return;
-            currentX = e.touches[0].clientX;
-            const diffX = currentX - startX;
-
-            el.style.transform = `translateX(${diffX}px)`;
-            el.style.opacity = `${Math.max(0.4, 1 - Math.abs(diffX) / 200)}`;
-        });
-
-        el.addEventListener("touchend", () => {
-            if (!isDragging) return;
-            isDragging = false;
-
-            const diffX = currentX - startX;
-            el.style.transition = "transform .25s ease, opacity .25s ease";
-
-            if (Math.abs(diffX) > 80) {
-                swipeClose(diffX);
-            } else {
-                el.style.transform = "translateX(0)";
-                el.style.opacity = "1";
-            }
-        });
-
-        stack.appendChild(el);
-
-        if (timeout > 0) {
-            setTimeout(close, timeout);
-        }
     }
 
 
