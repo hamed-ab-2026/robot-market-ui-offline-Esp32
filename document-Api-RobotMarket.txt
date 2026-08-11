@@ -1,1563 +1,705 @@
-----------------------------------Login System APIs--------------------------------------------
-1. Login with Password
+ROBOT MARKET ESP32 UI — FRONTEND API CONTRACT
+==============================================
 
-    Possible Roles
-        admin
-        operator
-        viewer
-        factory
-
-    Endpoint :
-    POST /api/login
-
-    Request Body :
-        {
-          "username": "09123456789",
-          "password": "admin123"
-        }
-
-    Response:
-        200 Authorized:
-        {
-          "success": true,
-          "token": "jwt_or_session_token",
-          "role": "admin",
-          "isFirstTime":"true", // new add
-          "canRetry": true // new add
-        }
-
-    Error Responses :
-        401 Unauthorized:
-        {
-          "success": false,
-          "msg": "Invalid username or password",
-        }
+Document status: Development contract
+Frontend entry points: index.html, app.html
+Default API origin: Same origin as the UI
+Local development proxy: http://192.168.1.118 (configured in vite.config.js)
 
 
-2. Send OTP Code
+1. PURPOSE AND SCOPE
+--------------------
 
-    Endpoint:
-    POST /api/send-otp
-    ارسال کد یکبار مصرف (OTP = One Time Password) برای ورود.
+This document describes the HTTP and real-time interfaces expected by the
+current Robot Market offline ESP32 frontend. It is based on calls that exist in
+the source code, not on a hypothetical backend design.
 
-    Request Body :
-        {
-          "username": "09123456789"
-        }
+Endpoints are marked as one of the following:
 
-    Response :
-        200:
-        {
-          "success": true,
-          "msg": "OTP sent"
-        }
+  ACTIVE       The production branch of the frontend currently calls it.
+  MOCKED       The UI exists, but development mode serves local mock data.
+  PLANNED      The call is present but commented out or not completed.
 
-    Error Responses :
-        400:
-        {
-          "success": false,
-          "msg": "Invalid phone number"
-        }
-
-        429:
-        {
-          "success": false,
-          "msg": "429 Too many requests"
-        }
-
-        450:
-        {
-          "success": false,
-          "msg": "450 Failed to send OTP"
-        }
+Development behavior is controlled by VITE_DEV_MODE. The development environment
+sets it to true and loads mock-data.mjs; the production environment sets it to
+false and uses the real application endpoints.
 
 
-3. Verify OTP:
+2. TRANSPORT AND COMMON RULES
+-----------------------------
 
-    Endpoint :
-    POST /api/verify-otp
+Protocol
+  HTTP/1.1 is sufficient. HTTPS may be used when supported by the device.
 
-    Request Body:
+Content type
+  Request bodies use:
+
+    Content-Type: application/json
+
+  Unless explicitly documented otherwise, responses must use:
+
+    Content-Type: application/json; charset=utf-8
+
+Authentication
+  Protected endpoints receive:
+
+    Authorization: Bearer <token>
+
+  The token is obtained from password or OTP authentication and stored by the
+  browser as rm_token.
+
+Common success envelope
+  Mutation endpoints should return at least:
+
     {
-      "code": "1234"
-      "CAPTCHA": "54321"
+      "success": true
     }
 
-    Response :
-    200:
-    {
-      "success": true,
-      "token": "jwt_or_session_token",
-      "role": "admin"
-    }
+Common error envelope
+  Errors should return a meaningful HTTP status and JSON body:
 
-    Error Responses:
-    401:
     {
       "success": false,
-      "token": "Invalid OTP"
-    }
-    410:
-    {
-      "success": false,
-      "token": "OTP expired"
+      "message": "Human-readable error",
+      "code": "OPTIONAL_MACHINE_READABLE_CODE"
     }
 
+Recommended status codes
+  400  Invalid request or validation error
+  401  Missing, invalid, or expired token
+  403  Authenticated but not permitted
+  404  Resource not found
+  409  Conflicting device state
+  422  Semantically invalid data
+  429  Too many requests
+  500  Internal device error
+  503  Dependent hardware/service unavailable
 
-    4. Password Reset Status
-    Endpoint:
-    GET /reset-status
+Important frontend behavior
+  A 401 response in app.html causes logout and redirects to index.html.
+  All protected responses should be valid JSON, including errors.
 
-    Response:
-    reset or waiting
-    
-    reset: دستگاه ریست شده و می‌توان به صفحه لاگین برگشت
-    waiting: هنوز دکمه نگه داشته نشده
 
-    Error Responses:
-    500 Failed to read reset status
+3. AUTHENTICATION
+-----------------
 
+3.1 Password login [ACTIVE]
 
+  POST /api/login
+  Authentication: No
 
-----------------------------------info--------------------------------------------
-# نام بخش
-Device Information
+Request:
 
-# Endpoint
-/api/info
+  {
+    "username": "09123456789",
+    "password": "admin123"
+  }
 
-# Method
-GET
+Successful response:
 
-# Auth Required
-Yes
+  {
+    "success": true,
+    "token": "session-or-jwt-token",
+    "role": "admin",
+    "isFirstTime": false,
+    "canRetry": true
+  }
 
-Header
-Authorization: Bearer <token>
+Supported roles used by the contract:
+  admin, operator, viewer, factory
 
+If isFirstTime is true, the frontend does not store the token. It stores the
+username temporarily and displays the password-change view.
 
-# Description
-این API اطلاعات کلی دستگاه، وضعیت اتصال WiFi در حالت Station، اطلاعات Access Point داخلی دستگاه و داده‌های مورد نیاز داشبورد را برمی‌گرداند.
+Failure example:
 
-از همین Endpoint می‌توان هم برای داشبورد و هم برای صفحه اطلاعات دستگاه استفاده کرد.
+  HTTP 401
+  {
+    "success": false,
+    "message": "Invalid username or password"
+  }
 
 
-# Response
+3.2 Send login OTP [ACTIVE]
 
-    json
-        {
-          "wifi_sta_ssid": "Home_WiFi",
-          "wifi_sta_ip": "192.168.1.45",
-          "wifi_sta_connected": true,
-          "mac": "AC:67:B2:14:9F:3C",
+  POST /send-otp
+  Authentication: No
 
-          "wifi_ap_ssid": "Device_Setup",
-          "wifi_ap_ip": "192.168.4.1",
-          "wifi_ap_connected_devices": 2,
+Request:
 
-          "rssi": -58, 
+  {
+    "username": "09123456789"
+  }
 
-          "esp_version": "1.3.2",
-          "stm_version": "2.0.4",
-          "board_version": "3.0.7",
-          "esp_chip": "ESP32-C3",
-          "stm_chip": "STM32F103",
-          "SN": "404000",
+Successful response:
 
-          "heap_used": 187520,
-          "heap_total": 327680,
-          "flash_used": 1048576,
-          "flash_total": 4194304,
+  {
+    "success": true,
+    "message": "OTP sent"
+  }
 
-          "system_status": "online",
+The frontend validates Iranian mobile numbers with /^09\d{9}$/ before this
+request. Rate limiting should return HTTP 429.
 
-          "last_operation": {
-            "title": "اتصال موفق به WiFi",
-            "time": "2026-06-20T10:30:00Z",
-            "status": "success"
-          }
-        }
 
+3.3 Verify login OTP [ACTIVE]
 
-# Field Descriptions
+  POST /verify-otp
+  Authentication: No
 
-code_version
-نسخه نرم‌افزار دستگاه که در صفحه اطلاعات دستگاه نمایش داده می‌شود.
+Request:
 
-chip_id
-شناسه چیپ یا شناسه یکتای سخت‌افزاری دستگاه.
+  {
+    "code": "1234"
+  }
 
-wifi_sta_ssid
-نام شبکه WiFi که دستگاه در حالت Station به آن متصل شده است.
+Successful response:
 
-wifi_sta_ip
-IP دریافت‌شده توسط دستگاه در شبکه WiFi اصلی.
+  {
+    "success": true,
+    "token": "session-or-jwt-token",
+    "role": "admin"
+  }
 
-wifi_sta_connected
-وضعیت اتصال دستگاه به WiFi.
+The current UI requires a four-digit code. CAPTCHA is not sent by the current
+implementation.
 
-true یعنی متصل
-false یعنی قطع
 
-mac
-آدرس MAC دستگاه.
-
-wifi_ap_ssid
-نام شبکه Access Point که خود دستگاه ایجاد کرده است.
-
-wifi_ap_ip
-IP دستگاه در حالت Access Point.
-
-wifi_ap_connected_devices
-تعداد کلاینت‌ها یا دستگاه‌های متصل به Access Point داخلی دستگاه.
-
-rssi
-قدرت سیگنال WiFi بر حسب dBm.
-
-firmware
-نسخه Firmware دستگاه.
-
-esp_version
-نسخه Firmware یا نرم‌افزار بخش ESP.
-
-stm_version
-نسخه Firmware میکروکنترلر STM.
-
-esp_chip
-مدل چیپ ESP.
-
-stm_chip
-مدل چیپ STM.
-
-serial
-شماره سریال دستگاه.
-
-free_heap
-مقدار حافظه RAM آزاد بر حسب Byte.
-
-heap_total
-کل حافظه Heap در دسترس بر حسب Byte.
-
-flash_used
-مقدار حافظه Flash استفاده‌شده بر حسب Byte.
-
-flash_size
-کل حافظه Flash دستگاه بر حسب Byte.
-
-system_status
-وضعیت کلی سیستم.
-
-مقادیر پیشنهادی:
-online
-warning
-error
-offline
-
-last_operation
-اطلاعات آخرین عملیات مهم دستگاه.
-
-last_operation.title
-عنوان آخرین عملیات.
-
-last_operation.time
-زمان آخرین عملیات با فرمت ISO 8601.
-
-last_operation.status
-وضعیت آخرین عملیات.
-
-مقادیر پیشنهادی:
-success
-warning
-error
-pending
-
-
-# Error Responses
-
-    401 Unauthorized
-    json
-        {
-          "success": false,
-          "message": "Unauthorized"
-        }
-
-    500 Internal Server Error
-    json
-        {
-          "success": false,
-          "message": "Failed to load device information"
-        }
-
-
-----------------------------------Notifications--------------------------------------------
-# نام بخش
-Notifications
-
-# Endpoint
-/api/notifications
-
-# Method
-GET
-
-# Auth Required
-Yes
-
-Header
-Authorization: Bearer <token>
-
-# Response
-json
-    {
-      "items": [
-        {
-          "id": 101,
-          "title": "سفارش جدید ثبت شد",
-          "message": "یک سفارش جدید از دستگاه ۱۲۳ ثبت شده است.",
-          "status": "success",
-          "time": "۵ دقیقه پیش",
-          "is_read": false
-        },
-        {
-          "id": 102,
-          "title": "موجودی کم",
-          "message": "محصول \"چیپس\" در حال نزدیک شدن به اتمام است.",
-          "status": "warning",
-          "time": "۳۰ دقیقه پیش",
-          "is_read": false
-        },
-        {
-          "id": 103,
-          "title": "بروزرسانی سیستم",
-          "message": "نسخه جدید پنل مدیریت منتشر شد.",
-          "status": "info",
-          "time": "۲ ساعت پیش",
-          "is_read": true
-        }
-      ]
-    }
-
-# Field Descriptions
-
-items
-لیست اعلان‌ها
-
-id
-شناسه یکتای اعلان
-
-title
-عنوان اعلان
-
-message
-متن کامل اعلان
-
-type
-نوع اعلان
-
-مقادیر ممکن:
-success
-warning
-info
-error
-
-time
-زمان نمایش اعلان (نمایش نسبی برای کاربر)
-
-is_read
-وضعیت خوانده شدن اعلان
-
-true  → خوانده شده
-false → خوانده نشده
-
-
-# Error Responses
-
-    401 Unauthorized
-    json
-    {
-      "success": false,
-      "message": "Unauthorized"
-    }
-
-    500 Internal Server Error
-    json
-    {
-      "success": false,
-      "message": "Failed to load notifications"
-    }
-
-
--------------------------------------------------------------------------------------------
-# نام بخش
-Mark All Notifications As Read
-
-# Endpoint
-/api/notifications/read-all
-
-# Method
-POST
-
-# Auth Required
-Yes
-
-Header
-Authorization: Bearer <token>
-
-# Response
-    json
-    {
-      "success": true,
-      "message": "All notifications marked as read"
-    }
-
-# Error Responses
-
-    401 Unauthorized
-        json
-        {
-          "success": false,
-          "message": "Unauthorized"
-        }
-
-    500 Internal Server Error
-        json
-        {
-          "success": false,
-          "message": "Failed to update notifications"
-        }
-
----------------------------Prices---------------------------------------------------
-# نام بخش
-Prices
-
-# Endpoint
-/api/prices
-
-# Method
-GET
-
-# Auth Required
-Yes
-
-Header
-Authorization: Bearer <token>
-
-# Response
-    json
-    {
-      "item1": {
-        "name": "سیب",
-        "quantity": 10,
-        "price": 50000
+3.4 Change password [ACTIVE]
+
+  POST /api/change-password
+  Authentication: No for the first-login flow; firmware may additionally
+                  permit an authenticated password-change flow.
+
+Request:
+
+  {
+    "username": "09123456789",
+    "oldPassword": "old-password",
+    "newPassword": "new-password"
+  }
+
+Successful response:
+
+  {
+    "success": true,
+    "token": "session-or-jwt-token"
+  }
+
+The frontend requires the new password to contain at least eight characters.
+
+
+3.5 Hardware reset status [ACTIVE]
+
+  GET /reset-status
+  Authentication: No
+  Response type: text/plain
+
+Valid response bodies:
+
+  waiting
+  reset
+
+The forgot-password screen polls this endpoint. "reset" returns the user to
+the login screen; "waiting" keeps the countdown active.
+
+
+4. DASHBOARD
+------------
+
+4.1 Dashboard summary [MOCKED / ACTIVE WHEN DEVELOPMENT MODE IS OFF]
+
+  GET /api/dashboard
+  Authentication: Yes
+
+Response:
+
+  {
+    "today": {
+      "sales": 2850000,
+      "transactions": 47,
+      "successful_transactions": 45,
+      "failed_transactions": 2
+    },
+    "speaker": {
+      "volume": 75,
+      "muted": false
+    },
+    "last_sale": {
+      "product": "Mineral Water",
+      "amount": 50000,
+      "time": "2026-07-15T13:42:18Z",
+      "status": "success"
+    },
+    "most_sold": {
+      "today": { "name": "Coca Cola", "count": 14 },
+      "week": { "name": "Mineral Water", "count": 82 },
+      "month": { "name": "Potato Chips", "count": 341 }
+    },
+    "device": {
+      "info": {
+        "name": "Vending Machine #001",
+        "model": "VM-ESP32-S3",
+        "serial": "VM202607150001",
+        "status": "online",
+        "uptime": "14d 06h 32m"
       },
-      "item2": {
-        "name": "موز",
-        "quantity": 15,
-        "price": 70000
+      "wifi": {
+        "connected": true,
+        "ssid": "RobotMarket",
+        "ip": "192.168.1.12",
+        "mac": "00:70:07:27:B2:38",
+        "rssi": -69,
+        "signal_quality": 60,
+        "frequency": "2.4GHz"
+      }
+    },
+    "warnings": [],
+    "notifications": [],
+    "latest_activity": [],
+    "sales_chart": {
+      "day": {
+        "labels": ["00", "01", "02"],
+        "series": [{ "sales": [0, 1000, 2000], "transactions": [0, 1, 2] }]
       },
-      "item3": {
-        "name": "پرتقال",
-        "quantity": 8,
-        "price": 60000
+      "week": {
+        "labels": ["Sat", "Sun", "Mon", "Tue", "Wed", "Thu", "Fri"],
+        "series": [{ "sales": [], "transactions": [] }]
       },
-      "item4": {
-        "name": "خیار",
-        "quantity": 20,
-        "price": 30000
-      }
+      "month": { "labels": [], "series": [] },
+      "year": { "labels": [], "series": [] }
     }
-
-# Field Descriptions
-
-item1..itemN
-شناسه محصول یا کانال دستگاه
-
-name
-نام محصول
-
-quantity
-تعداد موجودی محصول در دستگاه
-
-price
-قیمت محصول (به ریال)
+  }
 
 
-# Error Responses
+4.2 Set speaker volume [ACTIVE]
 
-    401 Unauthorized
-    json
-    {
-      "success": false,
-      "message": "Unauthorized"
-    }
+  POST /api/device/volume
+  Authentication: Yes
 
-    500 Internal Server Error
-    json
-    {
-      "success": false,
-      "message": "Failed to load prices"
-    }
+Request:
 
+  {
+    "volume": 75
+  }
 
-------------------------------------------------------------------------------------------
-# نام بخش
-Save Prices
+volume must be an integer from 0 through 100.
 
-# Endpoint
-/api/prices
+Response:
 
-# Method
-POST
-
-# Auth Required
-Yes
-
-Header
-Authorization: Bearer <token>
+  {
+    "success": true,
+    "volume": 75
+  }
 
 
-# Request Body
-    json
+5. NOTIFICATIONS AND REAL-TIME EVENTS
+-------------------------------------
+
+5.1 Server-sent events [ACTIVE]
+
+  GET /api/realtime-updates
+  Transport: text/event-stream
+  Authentication: The browser EventSource API does not send the Bearer header.
+                  Use the authenticated device session, a secure query token,
+                  or same-origin cookie if authentication is required.
+
+Each event data field must contain JSON. Supported payload fields include:
+
+  {
+    "notifications_count": 3,
+    "notifications": [],
+    "warnings": [],
+    "latest_activity": []
+  }
+
+5.2 Notification list [EXPECTED BY UI DATA MODEL]
+
+  GET /api/notifications
+  Authentication: Yes
+
+Response:
+
+  {
+    "notifications": [
       {
-      "item1": {
-        "name": "سیب",
-        "quantity": 10,
-        "price": 50000
-      },
-      "item2": {
-        "name": "موز",
-        "quantity": 15,
-        "price": 70000
-      },
-      "item3": {
-        "name": "پرتقال",
-        "quantity": 8,
-        "price": 60000
-      },
-      "item4": {
-        "name": "خیار",
-        "quantity": 20,
-        "price": 30000
+        "title": "Firmware updated",
+        "message": "ESP firmware updated successfully",
+        "status": "success",
+        "time": "2026-07-15T09:00:00Z",
+        "read": false
       }
+    ]
+  }
+
+5.3 Mark all notifications as read [PLANNED]
+
+  POST /api/notifications/read-all
+  Authentication: Yes
+
+Response: { "success": true }
+
+
+6. CLIENTS
+-----------
+
+6.1 List clients [MOCKED / ACTIVE WHEN DEVELOPMENT MODE IS OFF]
+
+  GET /api/clients
+  Authentication: Yes
+
+Response is an object keyed by a stable client key:
+
+  {
+    "client-1": {
+      "id": "1001",
+      "name": "Example Client",
+      "status": "Active",
+      "balance": 500000,
+      "error": "",
+      "disabledByServer": false
     }
+  }
 
-# Field Descriptions
+6.2 Create client [PLANNED]
 
-id
-شناسه دیتابیسی محصول
+  POST /api/clients
+  Body: { "id": "1001", "name": "Example Client", "status": "Active" }
 
-key
-کلید محصول در سیستم (مثلاً item1)
+6.3 Replace client [PLANNED]
 
-name
-نام محصول
+  PUT /api/clients/{key}
+  Body: { "id": "1001", "name": "New name", "status": "Inactive" }
 
-quantity
-تعداد موجودی محصول
+6.4 Delete client [PLANNED]
 
-price
-قیمت محصول (به ریال)
+  DELETE /api/clients/{key}
+  Response: { "success": true }
+
+Create, update, and delete currently mutate browser mock state only.
 
 
-    # Response
-    json
-    {
-      "success": true,
-      "message": "Prices saved successfully"
+7. WALLET BALANCES
+------------------
+
+7.1 Get balances [MOCKED / ACTIVE WHEN DEVELOPMENT MODE IS OFF]
+
+  GET /api/balance
+  Authentication: Yes
+
+Response:
+
+  [
+    { "id": "1001", "name": "Example Client", "balance": 500000 }
+  ]
+
+7.2 Update balances [ACTIVE]
+
+  POST /api/balance
+  Authentication: Yes
+
+Request:
+
+  [
+    { "id": "1001", "newBalance": 750000 },
+    { "id": "1002", "newBalance": 200000 }
+  ]
+
+Response: { "success": true }
+
+7.3 Export balances [PLANNED]
+
+  GET /api/balance/export
+  Authentication: Yes
+  Response content type: text/csv; charset=utf-8
+
+
+8. PRODUCT PRICES AND CHANNELS
+------------------------------
+
+8.1 Get prices [MOCKED / ACTIVE WHEN DEVELOPMENT MODE IS OFF]
+
+  GET /api/prices
+  Authentication: Yes
+
+Response is an object keyed by a stable row key:
+
+  {
+    "channel-1": {
+      "id": 1,
+      "channel": 1,
+      "name": "Mineral Water",
+      "quantity": 10,
+      "price": 50000,
+      "status": "Active",
+      "error": "",
+      "disabledByServer": false
     }
+  }
 
-# Error Responses
+8.2 Save all prices [ACTIVE]
 
-    401 Unauthorized
-        json
-        {
-          "success": false,
-          "message": "Unauthorized"
-        }
+  POST /api/prices
+  Authentication: Yes
 
-    500 Internal Server Error
-        json
-        {
-          "success": false,
-          "message": "Failed to save prices"
-        }
+Request:
 
-------------------------clients------------------------------------------------------
-# نام بخش
-Clients
+  {
+    "channel-1": { "name": "Mineral Water", "quantity": "10", "price": "50000" }
+  }
 
-# Endpoint
-/api/clients
+Response: { "success": true }
 
-# Method
-GET
+8.3 Replace advanced price settings [ACTIVE]
 
-# Auth Required
-Yes
+  PUT /api/prices/{id}
+  Authentication: Yes
 
-Header
-Authorization: Bearer <token>
+The body contains the complete editable row payload.
 
-# Response
-    json
-    {
-        "id1": {
-          "name": "علی رضابرجی",
-          "phone": "09123456789",
-          "status": "active"
-        },
-        "id2": {
-          "name": "محمد احمدی",
-          "phone": "09901234567",
-          "status": "inactive"
-        }
+8.4 Update one field [ACTIVE]
+
+  PATCH /api/prices/{id}
+  Authentication: Yes
+
+Examples:
+
+  { "name": "Mineral Water" }
+  { "price": 50000 }
+  { "quantity": 10 }
+
+8.5 Resolve a channel error [ACTIVE]
+
+  POST /api/price-resolve-error/{id}
+  Authentication: Yes
+
+Response:
+
+  {
+    "success": true,
+    "message": "Channel error resolved"
+  }
+
+
+9. GENERAL SETTINGS AND WI-FI
+-----------------------------
+
+9.1 Get settings [MOCKED / ACTIVE WHEN DEVELOPMENT MODE IS OFF]
+
+  GET /api/settings
+  Authentication: Yes
+
+The response populates these logical groups:
+  Wi-Fi station, access point, administrator, POS, date, and time.
+
+9.2 Save settings [PLANNED]
+
+  POST /api/save-settings
+  Authentication: Yes
+
+The request is a JSON object created from settingsForm. Field names must match
+the HTML form name attributes. The current UI returns a local success result
+and does not send this request.
+
+9.3 Scan Wi-Fi networks [PLANNED]
+
+  GET /api/wifi/scan
+  Authentication: Yes
+
+Response:
+
+  {
+    "networks": [
+      { "ssid": "RobotMarket", "rssi": -58, "secure": true, "connected": false }
+    ]
+  }
+
+9.4 Connect to Wi-Fi [PLANNED]
+
+  POST /api/wifi/connect
+  Authentication: Yes
+
+Request:
+
+  { "ssid": "RobotMarket", "password": "network-password" }
+
+Response:
+
+  { "success": true, "ip": "192.168.1.45" }
+
+
+10. DEVICE INFORMATION
+----------------------
+
+10.1 Get device information [MOCKED / ACTIVE WHEN DEVELOPMENT MODE IS OFF]
+
+  GET /api/info
+  Authentication: Yes
+
+Response:
+
+  {
+    "SN": "ESP32-DEV-00123456",
+    "esp_version": "1.3.2",
+    "stm_version": "2.0.4",
+    "board_version": "3.0.7",
+    "esp_chip": "ESP32-WROOM-32",
+    "stm_chip": "STM32F103",
+    "heap_used": 187520,
+    "heap_total": 327680,
+    "flash_used": 1048576,
+    "flash_total": 4194304,
+    "wifi": {
+      "wifi_sta_ssid": "Home_WiFi",
+      "wifi_sta_ip": "192.168.1.45",
+      "wifi_sta_connected": true,
+      "wifi_ap_ssid": "Device_Setup",
+      "wifi_ap_ip": "192.168.4.1",
+      "wifi_ap_connected_devices": 2,
+      "mac": "AC:67:B2:14:9F:3C",
+      "rssi": -58,
+      "system_status": "online"
+    },
+    "last_operation": {
+      "title": "Connected to Wi-Fi",
+      "time": "2026-06-20T10:30:00Z",
+      "status": "success"
     }
-
-# Field Descriptions
-
-items
-لیست کاربران ثبت‌شده در سیستم
-
-id
-شناسه یکتای کاربر
-
-name
-نام و نام خانوادگی کاربر
-
-phone
-شماره موبایل کاربر (نام کاربری ورود)
-
-role
-سطح دسترسی کاربر
-
-مقادیر ممکن:
-admin
-operator
-viewer
-factory
-
-status
-وضعیت حساب کاربری
-
-مقادیر ممکن:
-active
-inactive
+  }
 
 
-# Error Responses
+11. SERVICE CONFIGURATION
+-------------------------
 
-    401 Unauthorized
-        json
-        {
-          "success": false,
-          "message": "Unauthorized"
-        }
+11.1 Get service configuration [MOCKED / ACTIVE WHEN DEVELOPMENT MODE IS OFF]
 
-    500 Internal Server Error
-        json
-        {
-          "success": false,
-          "message": "Failed to load clients"
-        }
+  GET /api/service/config
+  Authentication: Yes
 
--------------------Balance-----------------------------------------------
-# نام بخش
-Balance
+Response:
 
-# Endpoint
-/api/balance
-
-# Method
-GET
-
-# Auth Required
-Yes
-
-Header
-Authorization: Bearer <token>
-
-# Response
-json
-    {
-        "id1": {
-          "name": "علی رضابرجی",
-          "balance": "09123456789",
-          "status": "active"
-        },
-        "id2": {
-          "name": "محمد احمدی",
-          "balance": "09901234567",
-          "status": "inactive"
-        }
+  {
+    "payment": {
+      "coin_acceptor": true,
+      "bill_acceptor": false,
+      "pos_terminal": true,
+      "wallet_payment": true
+    },
+    "auxiliary": {
+      "cooling_fan": true,
+      "lighting_system": true,
+      "temperature_sensor": true,
+      "door_sensor": true
+    },
+    "elevator": {
+      "elevator_enabled": true,
+      "elevator_motor_status": "ready",
+      "elevator_position": 1,
+      "elevator_sensor": "online"
     }
+  }
 
-# Field Descriptions
 
-clients
-لیست مشتریان و موجودی حساب آن‌ها
+12. FACTORY CONFIGURATION
+-------------------------
 
-id
-شناسه یکتای مشتری
+12.1 Get factory configuration [MOCKED / ACTIVE WHEN DEVELOPMENT MODE IS OFF]
 
-name
-نام مشتری
+  GET /api/factory
+  Authentication: Yes; factory role recommended
 
-balance
-موجودی حساب مشتری (به ریال)
+The response supplies network/DNS, system core, MQTT, and OTA form fields.
 
+12.2 Save factory configuration [ACTIVE]
 
-# Error Responses
+  POST /api/factory-save
+  Authentication: Yes; factory role recommended
 
-    401 Unauthorized
-    json
-    {
-      "success": false,
-      "message": "Unauthorized"
-    }
+The request is created from factoryForm and includes at least:
 
-    500 Internal Server Error
-    json
-    {
-      "success": false,
-      "message": "Failed to load balances"
-    }
+  {
+    "use_static": true,
+    "mqtt_auto": true,
+    "auth_code": "1234"
+  }
 
+Additional fields correspond to the form names for IP, DNS, MQTT, certificates,
+OTA, and core settings.
 
+Response: { "success": true }
 
-# نام بخش
-Save Balance
+12.3 Reset factory configuration [ACTIVE]
 
-# Endpoint
-/api/balance
+  POST /api/factory-reset
+  Authentication: Yes; factory role recommended
 
-# Method
-POST
+Request:
 
-# Auth Required
-Yes
+  { "confirm": true }
 
-Header
-Authorization: Bearer <token>
-Content-Type: application/json
+Response:
 
-# Request Body
-    json
-    {
-        "id1": {
-          "balance": "09123456789"
-        },
-        "id2": {
-          "balance": "09901234567"
-        }
-    }
+  { "success": true, "rebooting": true }
 
-# Field Descriptions
 
-clients
-لیست مشتریانی که موجودی آن‌ها تغییر کرده است
+13. LOG STREAM [PLANNED]
+------------------------
 
-id
-شناسه مشتری
+  WebSocket /ws
 
-balance
-موجودی جدید مشتری (به ریال)
+The WebSocket implementation is currently commented out. Proposed server
+messages are UTF-8 text lines or JSON objects containing timestamp, level, and
+message. If token authentication is required, define a safe query-token or
+initial authentication-message protocol before enabling this endpoint.
 
 
-# Response
-    json
-        {
-          "success": true,
-          "message": "Balance updated successfully"
-        }
+14. IMPLEMENTATION GAPS TO RESOLVE
+----------------------------------
 
-# Error Responses
+1. VITE_DEV_MODE=true bypasses real authentication and most GET endpoints.
+2. Client create/update/delete calls are commented out.
+3. Settings save returns a local { success: true } response.
+4. Wi-Fi scan and connect calls are commented out.
+5. Balance CSV export is not connected.
+6. The WebSocket log stream is not enabled.
+7. EventSource cannot attach the Authorization header used by normal requests.
+8. API error responses should be standardized before firmware integration.
 
-    401 Unauthorized
-    json
-        {
-          "success": false,
-          "message": "Unauthorized"
-        }
 
-    500 Internal Server Error
-    json
-        {
-          "success": false,
-          "message": "Failed to update balances"
-        }
+15. ENDPOINT SUMMARY
+--------------------
 
-
-
-# نام بخش
-Export Balance CSV
-
-# Endpoint
-/api/balance/export
-
-# Method
-GET
-
-# Auth Required
-Yes
-
-Header
-Authorization: Bearer <token>
-
-# Response
-    csv
-    ردیف,نام,شناسه,موجودی
-    1,علی رضایی,1001,250000
-    2,مریم احمدی,1002,120000
-    3,حسین کریمی,1003,980000
-
-    # Response Headers
-    http
-    Content-Type: text/csv; charset=utf-8
-    Content-Disposition: attachment; filename="balance.csv"
-
-# Error Responses
-
-    401 Unauthorized
-        {
-          "success": false,
-          "message": "Unauthorized"
-        }
-
-    500 Internal Server Error
-        {
-          "success": false,
-          "message": "Failed to export balances"
-        }
-
----------------Settings---------------------------------------------------
-# نام بخش
-Settings
-
-# Endpoint
-/api/get-settings
-
-# Method
-GET
-
-# Auth Required
-Yes
-
-Header
-Authorization: Bearer <token>
-
-# Response
-    json
-        {
-          "wifiSSID": "MyWifi",
-          "wifiPassword": "12345678",
-          "apSSID": "RobotMarket_AP",
-          "apPassword": "87654321",
-          "adminUsername": "admin",
-          "adminPassword": "changeme",
-          "posDevice": "SAMAN",
-          "currentDate": "2026-06-18",
-          "currentTime": "14:30",
-          "channelCount": 48
-        }
-
-# Field Descriptions
-
-wifiSSID
-نام شبکه WiFi که دستگاه باید به آن متصل شود
-
-wifiPassword
-رمز عبور شبکه WiFi
-
-apSSID
-نام Access Point داخلی دستگاه
-
-apPassword
-رمز عبور Access Point
-
-adminUsername
-نام کاربری مدیر سیستم
-
-adminPassword
-رمز عبور مدیر (در پاسخ GET معمولاً خالی برگردانده می‌شود)
-
-posDevice
-نوع دستگاه کارتخوان متصل به سیستم
-
-نمونه مقادیر:
-SAMAN
-SEP
-OTHER
-
-currentDate
-تاریخ فعلی سیستم (فرمت YYYY-MM-DD)
-
-currentTime
-زمان فعلی سیستم (فرمت HH:MM)
-
-channelCount
-تعداد کانال‌های دستگاه
-
-
-# Error Responses
-
-401 Unauthorized
-    json
-        {
-          "success": false,
-          "message": "Unauthorized"
-        }
-
-500 Internal Server Error
-    json
-        {
-          "success": false,
-          "message": "Failed to load settings"
-        }
-
-
-
-# نام بخش
-Save Settings
-
-# Endpoint
-/api/save-settings
-
-# Method
-POST
-
-# Auth Required
-Yes
-
-Header
-Authorization: Bearer <token>
-Content-Type: application/json
-
-
-# Request Body
-    json
-        {
-          "wifiSSID": "MyWifi",
-          "wifiPassword": "12345678",
-          "apSSID": "RobotMarket_AP",
-          "apPassword": "87654321",
-          "adminUsername": "admin",
-          "adminPassword": "newStrongPassword",
-          "posDevice": "SAMAN",
-          "setDate": "2026-06-18",
-          "setTime": "14:30",
-          "channelCount": 48
-        }
-
-# Field Descriptions
-
-wifiSSID
-نام شبکه WiFi جدید
-
-wifiPassword
-رمز عبور WiFi
-
-apSSID
-نام Access Point دستگاه
-
-apPassword
-رمز Access Point
-
-adminUsername
-نام کاربری مدیر
-
-adminPassword
-رمز عبور جدید مدیر (در صورت تغییر)
-
-posDevice
-نوع دستگاه POS
-
-setDate
-تنظیم تاریخ سیستم
-
-setTime
-تنظیم زمان سیستم
-
-channelCount
-تعداد کانال‌های دستگاه
-
-
-    # Response
-    json
-    {
-      "success": true,
-      "message": "Settings saved successfully",
-      "restartRequired": false
-    }
-
-# Field Descriptions
-
-success
-وضعیت موفقیت عملیات
-
-message
-پیام نتیجه عملیات
-
-restartRequired
-آیا برای اعمال تنظیمات نیاز به ریستارت دستگاه است یا خیر
-
-
-# Error Responses
-
-    401 Unauthorized
-        json
-            {
-              "success": false,
-              "message": "Unauthorized"
-            }
-
-    500 Internal Server Error
-        json
-            {
-              "success": false,
-              "message": "Failed to save settings"
-            }
-
------------------Factory Settings-------------------------------------------------
-
-  ```
-  # نام بخش
-  Factory Settings
-
-  # Endpoint
-  /api/factory-get
-
-  # Method
-  GET
-
-  # Auth Required
-  Yes
-
-  Header
-  Authorization: Bearer <token>
-
-  # Response
-  json
-      {
-        "dns1": "8.8.8.8",
-        "dns2": "8.8.4.4",
-        "use_static": true,
-        "static_ip": "192.168.1.50",
-        "static_gw": "192.168.1.1",
-        "static_sn": "255.255.255.0",
-
-        "SN": "RM-ESP32-240001",
-
-        "mqtt_host": "broker.example.com",
-        "mqtt_port": 8883,
-        "mqtt_topic": "robotmarket/device/01",
-        "mqtt_username": "user",
-        "mqtt_password": "456345324",
-        "mqtt_auto_cert": true,
-        "mqtt_cert": "",
-
-        "ota_primary": "https://primary.example.com",
-        "ota_secondary": "https://backup.example.com",
-        "ota_version": "version.json",
-        "ota_bin": "firmware.bin",
-        "ota_auto_cert": true,
-        "ota_cert": ""
-      }
-
-  # Field Descriptions
-
-  dns1
-  آدرس DNS اصلی
-
-  dns2
-  آدرس DNS ثانویه
-
-  use_static
-  مشخص می‌کند دستگاه از IP ثابت استفاده کند یا DHCP
-
-  true  → استفاده از IP ثابت
-  false → دریافت IP از DHCP
-
-  static_ip
-  آدرس IP ثابت دستگاه
-
-  static_gw
-  Gateway شبکه
-
-  static_sn
-  Subnet Mask شبکه
-
-  serial
-  شماره سریال دستگاه
-
-  mqtt_host
-  آدرس سرور MQTT Broker
-
-  mqtt_port
-  پورت اتصال MQTT
-
-  mqtt_topic
-  Topic مربوط به دستگاه در MQTT
-
-  mqtt_auto
-  اگر true باشد اتصال MQTT به صورت خودکار انجام می‌شود
-
-  mqtt_cert
-  گواهی امنیتی MQTT در صورت استفاده از TLS
-
-
-  ota_primary
-  آدرس سرور اصلی برای OTA Update
-
-  ota_secondary
-  آدرس سرور پشتیبان OTA
-
-  ota_version
-  فایل نسخه firmware
-
-  ota_bin
-  نام فایل firmware
-
-  ota_auto
-  اگر true باشد OTA به صورت خودکار بررسی می‌شود
-
-  ota_cert
-  گواهی امنیتی OTA در صورت استفاده از HTTPS
-
-
-  # Error Responses
-
-  401 Unauthorized
-      json
-          {
-            "success": false,
-            "message": "Unauthorized"
-          }
-
-  500 Internal Server Error
-      json
-          {
-            "success": false,
-            "message": "Failed to load factory settings"
-          }
-
-
-
-  # نام بخش
-  Save Factory Settings
-
-  # Endpoint
-  /api/factory-save
-
-  # Method
-  POST
-
-  # Auth Required
-  Yes
-
-  Header
-  Authorization: Bearer <token>
-  Content-Type: application/json
-
-
-  # Request Body
-  json
-      {
-        "dns1": "8.8.8.8",
-        "dns2": "8.8.4.4",
-        "use_static": true,
-        "static_ip": "192.168.1.50",
-        "static_gw": "192.168.1.1",
-        "static_sn": "255.255.255.0",
-
-        "SN": "RM-ESP32-240001",
-
-        "mqtt_host": "broker.example.com",
-        "mqtt_port": 8883,
-        "mqtt_topic": "robotmarket/device/01",
-        "mqtt_username": "user",
-        "mqtt_password": "456345324",
-        "mqtt_auto_cert": true,
-        "mqtt_cert": "",
-
-        "ota_primary": "https://primary.example.com",
-        "ota_secondary": "https://backup.example.com",
-        "ota_version": "version.json",
-        "ota_bin": "firmware.bin",
-        "ota_auto_cert": true,
-        "ota_cert": ""
-      }
-
-  # Field Descriptions
-
-  dns1
-  DNS اصلی
-
-  dns2
-  DNS ثانویه
-
-  use_static
-  فعال بودن IP ثابت
-
-  static_ip
-  IP ثابت دستگاه
-
-  static_gw
-  Gateway شبکه
-
-  static_sn
-  Subnet Mask
-
-  serial
-  شماره سریال دستگاه
-
-  sn_pass
-  کد امنیتی برای اجازه تغییر سریال دستگاه
-
-  mqtt_host
-  آدرس سرور MQTT
-
-  mqtt_port
-  پورت MQTT
-
-  mqtt_topic
-  Topic مربوط به دستگاه
-
-  mqtt_auto
-  فعال بودن اتصال خودکار MQTT
-
-  mqtt_cert
-  گواهی امنیتی MQTT
-
-  ota_primary
-  سرور اصلی OTA
-
-  ota_secondary
-  سرور پشتیبان OTA
-
-  ota_version
-  فایل نسخه firmware
-
-  ota_bin
-  فایل firmware
-
-  ota_auto
-  بررسی خودکار آپدیت
-
-  ota_cert
-  گواهی امنیتی OTA
-
-
-  # Response
-  json
-      {
-        "success": true,
-        "message": "Factory settings saved successfully",
-        "restartRequired": true
-      }
-
-  # Field Descriptions
-
-  success
-  وضعیت موفقیت عملیات
-
-  message
-  پیام نتیجه عملیات
-
-  restartRequired
-  آیا برای اعمال تغییرات نیاز به ریستارت دستگاه وجود دارد
-
-
-  # Error Responses
-
-  401 Unauthorized
-      json
-          {
-            "success": false,
-            "message": "Unauthorized"
-          }
-
-  500 Internal Server Error
-      json
-          {
-            "success": false,
-            "message": "Failed to save factory settings"
-          }
-
-
-
-  # نام بخش
-  Factory Reset
-
-  # Endpoint
-  /api/factory-reset
-
-  # Method
-  POST
-
-  # Auth Required
-  Yes
-
-  Header
-  Authorization: Bearer <token>
-  Content-Type: application/json
-
-
-  # Request Body
-  json
-      {
-        "confirm": true
-      }
-
-  # Field Descriptions
-
-  confirm
-  برای جلوگیری از ریست تصادفی باید مقدار true ارسال شود
-
-
-  # Response
-  json
-      {
-        "success": true,
-        "message": "Factory reset completed",
-        "restartRequired": true
-      }
-
-  # Error Responses
-
-  401 Unauthorized
-  json
-      {
-        "success": false,
-        "message": "Unauthorized"
-      }
-
-  500 Internal Server Error
-  json
-      {
-        "success": false,
-        "message": "Factory reset failed"
-      }
-  ```
-
----------------------System Logs Stream---------------------------------------------
-```
-# نام بخش
-System Logs Stream
-
-# Endpoint
-/log/ws
-
-# Protocol
-WebSocket
-
-# Auth Required
-Yes
-
-
-# Authentication
-
-یکی از روش‌های زیر باید توسط سرور پشتیبانی شود.
-
-## روش 1: Query Param
-اتصال WebSocket همراه با توکن در Query
-
-ws://<host>/ws?token=<authToken>
-
-
-## روش 2: ارسال توکن بعد از اتصال
-
-Client پس از اتصال پیام احراز هویت ارسال می‌کند.
-
-json
-{
-  "type": "auth",
-  "token": "<authToken>"
-}
-
-نکته
-اگر WebSocket روی ESP32 محدودیت در ارسال Header داشته باشد، استفاده از Query Param ساده‌تر است.
-
-
-# Client Behavior
-
-پس از اتصال موفق، سرور لاگ‌های سیستم را به صورت Real-Time برای کلاینت ارسال می‌کند.
-
-
-
-# Message Format
-
-json
-{
-  "type": "log",
-  "timestamp": "2026-06-18T14:30:45Z",
-  "level": "info",
-  "message": "سیستم راه‌اندازی شد"
-}
-
-
-# Field Descriptions
-
-type
-نوع پیام
-
-در این Endpoint مقدار آن برابر با:
-log
-
-timestamp
-زمان ثبت لاگ (فرمت ISO 8601)
-
-level
-سطح لاگ سیستم
-
-مقادیر مجاز:
-info
-warning
-error
-debug
-
-message
-متن لاگ
-
-
-
-# Example Messages
-
-## Info
-
-json
-    {
-      "type": "log",
-      "timestamp": "2026-06-18T14:30:45Z",
-      "level": "info",
-      "message": "اتصال وای‌فای برقرار شد"
-}
-
-## Warning
-
-json
-    {
-      "type": "log",
-      "timestamp": "2026-06-18T14:31:02Z",
-      "level": "warning",
-      "message": "قدرت سیگنال وای‌فای ضعیف است"
-    }
-
-## Error
-
-json
-    {
-      "type": "log",
-      "timestamp": "2026-06-18T14:31:18Z",
-      "level": "error",
-      "message": "اتصال به MQTT Broker ناموفق بود"
-    }
-
-
-
-# Error Messages
-
-## Authentication Failed
-
-json
-    {
-      "type": "error",
-      "message": "Unauthorized"
-    }
-
-## Invalid Token
-
-json
-    {
-      "type": "error",
-      "message": "Invalid token"
-    }
-
-
-
-----------------System Logs History----------------------------------
-
-
-# نام بخش
-System Logs History
-
-# Endpoint
-/api/logs
-
-# Method
-GET
-
-# Auth Required
-Yes
-
-Header
-Authorization: Bearer <token>
-
-
-# Query Parameters
-
-limit
-تعداد لاگ‌های بازگشتی
-
-level
-فیلتر بر اساس سطح لاگ
-
-
-# Example Request
-
-http
-GET /api/logs?limit=100&level=info
-
-
-# Response
-
-json
-    {
-      "items": [
-        {
-          "timestamp": "2026-06-18T14:30:45Z",
-          "level": "info",
-          "message": "سیستم راه‌اندازی شد"
-        },
-        {
-          "timestamp": "2026-06-18T14:31:02Z",
-          "level": "warning",
-          "message": "بررسی وضعیت شبکه"
-        }
-      ]
-    }
-
-
-# Field Descriptions
-
-items
-لیست لاگ‌های سیستم
-
-timestamp
-زمان ثبت لاگ
-
-level
-سطح لاگ
-
-message
-متن پیام لاگ
-
-
-# Error Responses
-
-401 Unauthorized
-    json
-        {
-          "success": false,
-          "message": "Unauthorized"
-        }
-
-500 Internal Server Error
-    json
-        {
-          "success": false,
-          "message": "Failed to load logs"
-        }
-
-
-------------------------------------------------------------------
-
-
+  POST   /api/login
+  POST   /send-otp
+  POST   /verify-otp
+  POST   /api/change-password
+  GET    /reset-status
+  GET    /api/dashboard
+  POST   /api/device/volume
+  GET    /api/realtime-updates              (SSE)
+  GET    /api/notifications                 (expected data model)
+  POST   /api/notifications/read-all        (planned)
+  GET    /api/clients
+  POST   /api/clients                       (planned)
+  PUT    /api/clients/{key}                 (planned)
+  DELETE /api/clients/{key}                 (planned)
+  GET    /api/balance
+  POST   /api/balance
+  GET    /api/balance/export                (planned)
+  GET    /api/prices
+  POST   /api/prices
+  PUT    /api/prices/{id}
+  PATCH  /api/prices/{id}
+  POST   /api/price-resolve-error/{id}
+  GET    /api/settings
+  POST   /api/save-settings                 (planned)
+  GET    /api/wifi/scan                     (planned)
+  POST   /api/wifi/connect                  (planned)
+  GET    /api/info
+  GET    /api/service/config
+  GET    /api/factory
+  POST   /api/factory-save
+  POST   /api/factory-reset
+  WS     /ws                                (planned)
+
+End of document.
