@@ -789,6 +789,18 @@
         }
 
 
+        // Enter as PWA APP
+        const params = new URLSearchParams(location.hash.slice(1));
+        const value = params.get("rm_auto_login");
+        if (value) {
+            const auth = JSON.parse(value);
+            localStorage.setItem("rm_token", auth.token);
+            localStorage.setItem("rm_user", JSON.stringify({role: auth.role}));
+            history.replaceState(null, "", location.pathname + location.search);
+            location.reload();
+        }
+
+
         const token = localStorage.getItem('rm_token');
 
         if (token) {
