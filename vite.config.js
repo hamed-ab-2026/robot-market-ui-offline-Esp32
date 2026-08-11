@@ -41,6 +41,9 @@ export default defineConfig({
         },
     },
     build: {
+        modulePreload: {
+            polyfill: false,
+        },
         minify: true,
         cssMinify: true,
         sourcemap: false,
@@ -50,9 +53,18 @@ export default defineConfig({
                 app: resolve(__dirname, "app.html"),
             },
             output: {
-                entryFileNames: "assets/[name]-[hash].js",
-                chunkFileNames: "assets/[name]-[hash].js",
-                assetFileNames: "assets/[name]-[hash][extname]",
+                entryFileNames: "assets/[name].js",
+                chunkFileNames: "assets/c-[name].js",
+                assetFileNames: (assetInfo) => {
+                    const name = assetInfo.names?.[0] || assetInfo.name || "asset";
+                    const extension = name.split(".").pop()?.toLowerCase();
+
+                    if (extension === "woff2") return "assets/font.woff2";
+                    if (extension === "ico") return "assets/favicon.ico";
+                    if (extension === "png") return "assets/logo.png";
+
+                    return "assets/[name][extname]";
+                },
             },
         },
     },
