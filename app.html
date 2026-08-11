@@ -286,6 +286,15 @@
             transition: 0.3s ease;
         }
 
+        .sidebar-header,
+        .sidebar-footer {
+            display: contents;
+        }
+
+        .sidebar-nav {
+            display: contents;
+        }
+
         .navbar.active {
             right: 0;
         }
@@ -2083,9 +2092,22 @@
             }
         }
 
-        @media (min-width: 1100px) {
+        @media (min-width: 992px) {
+            :root {
+                --sidebar-width: 264px;
+                --sidebar-gap: 24px;
+            }
+
+            .page-action-bar {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 310px;
+            }
+
             body {
                 padding-top: 0;
+                padding-right: calc(var(--sidebar-width) + var(--sidebar-gap));
             }
 
             .mobile-navbar,
@@ -2094,42 +2116,90 @@
             }
 
             .navbar {
-                position: sticky;
-                flex-direction: row;
-                align-items: center;
-                justify-content: center;
-                width: auto;
+                position: fixed;
+                top: 18px;
+                right: 18px;
+                bottom: 18px;
+                z-index: 1000;
+                display: flex;
+                flex-direction: column;
+                width: var(--sidebar-width);
                 height: auto;
-                padding: 5px 0 0;
+                padding: 20px 14px 14px;
                 overflow: visible;
-                box-shadow: none;
+                border: 1px solid rgba(var(--primary-rgb), 0.12);
+                border-radius: 20px;
+                background: rgba(255, 255, 255, 0.9);
+                box-shadow: var(--shadow-md);
+                backdrop-filter: blur(16px);
+                -webkit-backdrop-filter: blur(16px);
+            }
+
+            .sidebar-header {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                flex: 0 0 auto;
+                gap: 8px;
+                padding: 6px 8px 22px;
+                border-bottom: 1px solid var(--border-soft);
+            }
+
+            .sidebar-subtitle {
+                color: var(--text-faint);
+                font-size: 12px;
+            }
+
+            .sidebar-nav {
+                display: flex;
+                flex: 1 1 auto;
+                flex-direction: column;
+                gap: 4px;
+                padding: 18px 0;
+                overflow-y: auto;
+                scrollbar-width: thin;
             }
 
             .nav-item {
-                width: auto;
-                min-height: auto;
+                position: relative;
+                align-items: center;
+                width: 100%;
+                min-height: 48px;
                 margin: 0;
-                padding: 16px 12px;
-                border-bottom: 3px solid transparent;
-                border-radius: 0;
+                padding: 11px 16px;
+                border-radius: 12px;
+                color: var(--text-sub);
             }
 
             .nav-item:hover {
-                background: transparent;
+                background: var(--primary-soft);
                 transform: none;
             }
 
             .nav-item.active {
-                border-bottom-color: var(--primary);
-                background: transparent;
+                background: rgba(var(--primary-rgb), 0.12);
                 color: var(--primary);
             }
 
+            .nav-item.active::after {
+                position: absolute;
+                top: 10px;
+                right: -14px;
+                width: 4px;
+                height: 28px;
+                border-radius: 4px 0 0 4px;
+                background: var(--primary);
+                content: "";
+            }
+
             .notif-badge-container {
+                position: absolute;
+                top: 22px;
+                left: 18px;
                 display: block;
-                padding-top: 0;
-                padding-inline: 12px;
-                border-bottom: 3px solid transparent;
+                padding: 8px;
+                border-radius: 10px;
+                background: var(--primary-soft);
             }
 
             .notif-badge-container .notif-badge {
@@ -2143,6 +2213,7 @@
 
             .logo-RobotMarket {
                 position: static;
+                display: block;
                 height: auto;
             }
 
@@ -2153,15 +2224,24 @@
 
             .user-menu-desktop {
                 display: flex;
+                width: 100%;
+                min-height: 52px;
+                margin: 0;
+                padding: 9px 10px;
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                background: var(--bg-muted);
             }
 
             .user-dropdown {
                 right: 0;
-                left: auto;
+                left: 0;
             }
 
             .container {
-                margin: 25px auto;
+                width: calc(100% - 44px);
+                max-width: 1440px;
+                margin: 24px auto;
             }
         }
 
@@ -2269,61 +2349,68 @@
         <i data-icon="close"></i>
     </div>
 
-    <span class="notif-badge-container">
-            <a href="#/notifications">
-              <i data-icon="bell"></i>
-              <span class="notif-badge hidden">0</span>
-            </a>
-          </span>
+    <div class="sidebar-header">
+        <a href="#/" class="logo-RobotMarket">
+            <img src="images/logo-RobotMarket.png" alt="Robot Market"/>
+        </a>
+    </div>
 
-    <a href="#/" class="nav-item active">
-        <div><i data-icon="layout"></i></div>
-        <div>داشبورد</div>
-    </a>
-    <a href="#/prices" class="nav-item">
-        <div><i data-icon="server"></i></div>
-        <div>مدیریت قیمت</div>
-    </a>
-    <a href="#/info" class="nav-item">
-        <div><i data-icon="logs"></i></div>
-        <div>اطلاعات دستگاه</div>
-    </a>
-    <a href="#/service-configuration" class="nav-item">
-        <div><i data-icon="cpu"></i></div>
-        <div>پیکربندی سرویس ها</div>
-    </a>
-    <a href="#/clients" class="nav-item">
-        <div><i data-icon="users"></i></div>
-        <div>کاربران</div>
-    </a>
-    <a href="#/balance" class="nav-item">
-        <div><i data-icon="pay"></i></div>
-        <div>کیف پول</div>
-    </a>
-    <a href="#/settings" class="nav-item">
-        <div><i data-icon="setting"></i></div>
-        <div>تنظیمات</div>
-    </a>
+    <div class="sidebar-footer">
+        <div class="user-menu-desktop" onclick="toggleUserMenu(event)">
+            <img class="user-avatar" src="images/favicon.ico"/>
 
-    <a href="#/dev" style="background-color: red; color: white" class="nav-item hidden">
-        <div><i data-icon="debug"></i></div>
-        <div>dev_Mode</div>
-    </a>
+            <span class="user-name">Admin</span>
 
-    <div class="user-menu-desktop" onclick="toggleUserMenu(event)">
-        <img class="user-avatar" src="images/favicon.ico"/>
-
-        <span class="user-name">Admin</span>
-
-        <div class="user-dropdown">
-            <a onclick="rebootSystem()">ریبوت سیستم</a>
-            <a onclick="logout()" class="logout">خروج</a>
+            <div class="user-dropdown">
+                <a onclick="rebootSystem()">ریبوت سیستم</a>
+                <a onclick="logout()" class="logout">خروج</a>
+            </div>
         </div>
     </div>
 
-    <a href="#/" class="logo-RobotMarket">
-        <img src="images/logo-RobotMarket.png"/>
-    </a>
+
+    <div class="sidebar-nav">
+        <a href="#/" class="nav-item active">
+            <div></div>
+            <div>داشبورد</div>
+        </a>
+
+        <a href="#/notifications" class="nav-item active">
+            <div><i data-icon="bell"></i></div>
+            <div>اعلانات</div>
+        </a>
+        <a href="#/prices" class="nav-item">
+            <div><i data-icon="server"></i></div>
+            <div>مدیریت قیمت</div>
+        </a>
+        <a href="#/info" class="nav-item">
+            <div><i data-icon="logs"></i></div>
+            <div>اطلاعات دستگاه</div>
+        </a>
+        <a href="#/service-configuration" class="nav-item">
+            <div><i data-icon="cpu"></i></div>
+            <div>پیکربندی سرویس ها</div>
+        </a>
+        <a href="#/clients" class="nav-item">
+            <div><i data-icon="users"></i></div>
+            <div>کاربران</div>
+        </a>
+        <a href="#/balance" class="nav-item">
+            <div><i data-icon="pay"></i></div>
+            <div>کیف پول</div>
+        </a>
+        <a href="#/settings" class="nav-item">
+            <div><i data-icon="setting"></i></div>
+            <div>تنظیمات</div>
+        </a>
+
+        <a href="#/dev" style="background-color: red; color: white" class="nav-item hidden">
+            <div><i data-icon="debug"></i></div>
+            <div>dev_Mode</div>
+        </a>
+    </div>
+
+
 </nav>
 
 <div id="overlay" onclick="toggleMenu()"></div>
@@ -4100,7 +4187,6 @@
     // -------------End of Global Variables----------
 
 
-
     // =========================================================
     //   SHARED HELPERS
     //   Used by the router and/or by more than one page module.
@@ -4636,7 +4722,6 @@
                 renderError(404);
         }
     }
-
 
 
     // --- View Handlers  ---
