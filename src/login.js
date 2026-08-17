@@ -41,7 +41,7 @@
     };
 
 
-        const dom = {
+    const dom = {
         views: {
             login: document.getElementById("loginView"),
             forget: document.getElementById("forgetView"),
@@ -57,10 +57,8 @@
         passField: document.getElementById("passField"),
         countdown: document.getElementById("countdown"),
         toastContainer: document.getElementById("toast-container"),
-            otpInputs: document.querySelectorAll(".otp-input")
-        };
-
-        dom.avatar = document.getElementById("loginAvatar");
+        otpInputs: document.querySelectorAll(".otp-input")
+    };
 
 
     const APP_MESSAGES = Object.freeze({
@@ -557,46 +555,7 @@
         if (state.loginMode === "otp") {
             dom.username.value = dom.username.value.replace(/\D/g, "").slice(0, 11);
         }
-
-        updateAvatarLook();
     });
-
-    /**
-     * Keeps the login character's gaze close to the username caret.
-     * Password fields deliberately make it look away for privacy.
-     */
-    function updateAvatarLook() {
-        if (!dom.avatar) return;
-
-        const length = dom.username.value.length;
-        const progress = Math.min(length, 12) / 12;
-        const lookX = -4 + progress * 8;
-
-        dom.avatar.style.setProperty("--look-x", `${lookX.toFixed(1)}px`);
-        dom.avatar.style.setProperty("--look-y", length ? "3px" : "1px");
-    }
-
-    dom.username.addEventListener("focus", () => {
-        dom.avatar?.classList.remove("is-private");
-        dom.avatar?.classList.add("is-watching");
-        updateAvatarLook();
-    });
-
-    dom.username.addEventListener("blur", () => {
-        dom.avatar?.classList.remove("is-watching");
-    });
-
-    dom.password.addEventListener("focus", () => {
-        dom.avatar?.classList.remove("is-watching");
-        dom.avatar?.classList.add("is-private");
-    });
-
-    dom.password.addEventListener("blur", () => {
-        dom.avatar?.classList.remove("is-private");
-        updateAvatarLook();
-    });
-
-    updateAvatarLook();
 
 
 })();
