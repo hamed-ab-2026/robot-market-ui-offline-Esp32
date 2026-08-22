@@ -1,256 +1,256 @@
 //-------- Global Variables ------------
 
-    const DEVELOP_MODE = import.meta.env.VITE_DEV_MODE === "true";
+const DEVELOP_MODE = import.meta.env.VITE_DEV_MODE === "true";
 
-    const app = document.getElementById("app");
-    const loader = document.getElementById("loader");
+const app = document.getElementById("app");
+const loader = document.getElementById("loader");
 
-    let lastRoute = null;
-    let ws = null;
-    let salesTrendPeriod = "week";
-    let dashboardRawData = {};
-    let volumeTimeout = null;
-    let initialFormState = null;
-    let resolvingChannelError = false;
+let lastRoute = null;
+let ws = null;
+let salesTrendPeriod = "week";
+let dashboardRawData = {};
+let volumeTimeout = null;
+let initialFormState = null;
+let resolvingChannelError = false;
 
-    let renderPricesData = {};
-    let renderDashboardData = null;
-    let renderInfoData = null;
-    let renderClientsData = null;
-    let renderBalanceData = null;
-    let renderSettingsData = null;
-    let renderServiceConfigurationData = null;
-    let renderFactoryData = null;
+let renderPricesData = {};
+let renderDashboardData = null;
+let renderInfoData = null;
+let renderClientsData = null;
+let renderBalanceData = null;
+let renderSettingsData = null;
+let renderServiceConfigurationData = null;
+let renderFactoryData = null;
 
-    let pendingPhysicalChange = null;
+let pendingPhysicalChange = null;
 
-    if (DEVELOP_MODE) {
-        showLoader(true)
-        setTimeout(() => {
-            showLoader(false)
-        }, 2000)
-    }
+if (DEVELOP_MODE) {
+    showLoader(true)
+    setTimeout(() => {
+        showLoader(false)
+    }, 2000)
+}
 
-    const ICONS = {
-        bell: `
+const ICONS = {
+    bell: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"> <path d="M10.268 21a2 2 0 0 0 3.464 0"></path> <path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8A6 6 0 0 0 6 8c0 4.499-1.411 5.956-2.738 7.326"></path></svg>
                   `,
-        cpu: `
+    cpu: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground lucide-cpu-icon lucide-cpu h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground"><path d="M12 20v2"></path><path d="M12 2v2"></path><path d="M17 20v2"></path><path d="M17 2v2"></path><path d="M2 12h2"></path><path d="M2 17h2"></path><path d="M2 7h2"></path><path d="M20 12h2"></path><path d="M20 17h2"></path><path d="M20 7h2"></path><path d="M7 20v2"></path><path d="M7 2v2"></path><rect x="4" y="4" width="16" height="16" rx="2"></rect><rect x="8" y="8" width="8" height="8" rx="1"></rect></svg>
                   `,
-        menu: `
+    menu: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"> <line x1="3" y1="12" x2="21" y2="12"></line> <line x1="3" y1="6" x2="21" y2="6"></line> <line x1="3" y1="18" x2="21" y2="18"></line></svg>
                   `,
-        edit: `
+    edit: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 lucide-pen-icon lucide-pen h-4 w-4"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"></path></svg>
                   `,
-        warning: `
+    warning: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"> <path d="M12 9v4"></path> <path d="M12 17h.01"></path> <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path></svg>
                   `,
-        danger: `
+    danger: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-6 w-6 lucide-triangle-alert-icon lucide-triangle-alert h-6 w-6"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
                   `,
-        success: `
+    success: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-5 w-5 shrink-0 lucide-circle-check-big-icon lucide-circle-check-big h-5 w-5 shrink-0"><path d="M21.801 10A10 10 0 1 1 17 3.335"></path><path d="m9 11 3 3L22 4"></path></svg>
                   `,
-        close: `
+    close: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 lucide-x-icon lucide-x h-4 w-4"><path d="M18 6 6 18"></path><path d="m6 6 12 12"></path></svg>
                   `,
-        setting: `
+    setting: `
                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground lucide-settings-icon lucide-settings h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"></path><circle cx="12" cy="12" r="3"></circle></svg>
                   `,
-        wifi: `
+    wifi: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground lucide-wifi-icon lucide-wifi h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground"><path d="M12 20h.01"></path><path d="M2 8.82a15 15 0 0 1 20 0"></path><path d="M5 12.859a10 10 0 0 1 14 0"></path><path d="M8.5 16.429a5 5 0 0 1 7 0"></path></svg>
                   `,
-        products: `
+    products: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground lucide-package-icon lucide-package h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"></path><path d="M12 22V12"></path><polyline points="3.29 7 12 12 20.71 7"></polyline><path d="m7.5 4.27 9 5.15"></path></svg>
                   `,
-        reports: `
+    reports: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground lucide-receipt-text-icon lucide-receipt-text h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"></path><path d="M14 8H8"></path><path d="M16 12H8"></path><path d="M13 16H8"></path></svg>
                   `,
-        users: `
+    users: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground lucide-users-icon lucide-users h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><path d="M16 3.128a4 4 0 0 1 0 7.744"></path><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><circle cx="9" cy="7" r="4"></circle></svg>
                   `,
-        user: `
+    user: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 text-primary-08-main lucide-user-icon lucide-user h-4 w-4 text-primary-08-main"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
                   `,
-        pay: `
+    pay: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground lucide-credit-card-icon lucide-credit-card h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground"><rect width="20" height="14" x="2" y="5" rx="2"></rect><line x1="2" x2="22" y1="10" y2="10"></line></svg>
                   `,
-        wireless: `
+    wireless: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground lucide-radio-icon lucide-radio h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground"><path d="M16.247 7.761a6 6 0 0 1 0 8.478"></path><path d="M19.075 4.933a10 10 0 0 1 0 14.134"></path><path d="M4.925 19.067a10 10 0 0 1 0-14.134"></path><path d="M7.753 16.239a6 6 0 0 1 0-8.478"></path><circle cx="12" cy="12" r="2"></circle></svg>
                   `,
-        logs: `
+    logs: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground lucide-file-text-icon lucide-file-text h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M10 9H8"></path><path d="M16 13H8"></path><path d="M16 17H8"></path></svg>
                   `,
-        server: `
+    server: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground lucide-server-icon lucide-server h-4 w-4 transition-colors text-neutral-08-caption-dark group-hover:text-foreground"><rect width="20" height="8" x="2" y="2" rx="2" ry="2"></rect><rect width="20" height="8" x="2" y="14" rx="2" ry="2"></rect><line x1="6" x2="6.01" y1="6" y2="6"></line><line x1="6" x2="6.01" y1="18" y2="18"></line></svg>
                   `,
-        exit: `
+    exit: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 lucide-log-out-icon lucide-log-out h-4 w-4"><path d="m16 17 5-5-5-5"></path><path d="M21 12H9"></path><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path></svg>
                   `,
-        refresh: `
+    refresh: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 lucide-refresh-cw-icon lucide-refresh-cw h-4 w-4"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M8 16H3v5"></path></svg>
                   `,
-        download: `
+    download: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 lucide-download-icon lucide-download h-4 w-4"><path d="M12 15V3"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="m7 10 5 5 5-5"></path></svg>
                   `,
-        delete: `
+    delete: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 lucide-trash2-icon lucide-trash-2 h-4 w-4"><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"></path><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
                   `,
-        key: `
+    key: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 lucide-key-icon lucide-key h-4 w-4"><path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4"></path><path d="m21 2-9.6 9.6"></path><circle cx="7.5" cy="15.5" r="5.5"></circle></svg>
                   `,
-        upload: `
+    upload: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-6 w-6 text-neutral-07-caption-light lucide-upload-icon lucide-upload h-6 w-6 text-neutral-07-caption-light"><path d="M12 3v12"></path><path d="m17 8-5-5-5 5"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path></svg>
                   `,
-        location: `
+    location: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 text-primary-08-main lucide-map-pin-icon lucide-map-pin h-4 w-4 text-primary-08-main"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"></path><circle cx="12" cy="10" r="3"></circle></svg>
                   `,
-        debug: `
+    debug: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-5 w-5 lucide-bug-icon lucide-bug h-5 w-5"><path d="m8 2 1.88 1.88"></path><path d="M14.12 3.88 16 2"></path><path d="M9 7.13v-1a3.003 3.003 0 1 1 6 0v1"></path><path d="M12 20c-3.3 0-6-2.7-6-6v-3a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v3c0 3.3-2.7 6-6 6"></path><path d="M12 20v-9"></path><path d="M6.53 9C4.6 8.8 3 7.1 3 5"></path><path d="M6 13H2"></path><path d="M3 21c0-2.1 1.7-3.9 3.8-4"></path><path d="M20.97 5c0 2.1-1.6 3.8-3.5 4"></path><path d="M22 13h-4"></path><path d="M17.2 17c2.1.1 3.8 1.9 3.8 4"></path></svg>
                   `,
-        layout: `
+    layout: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 lucide-layout-dashboard-icon lucide-layout-dashboard h-4 w-4"><rect width="7" height="9" x="3" y="3" rx="1"></rect><rect width="7" height="5" x="14" y="3" rx="1"></rect><rect width="7" height="9" x="14" y="12" rx="1"></rect><rect width="7" height="5" x="3" y="16" rx="1"></rect></svg>
                   `,
-        save: `
+    save: `
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide h-4 w-4 lucide-save-icon lucide-save h-4 w-4"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"></path><path d="M7 3v4a1 1 0 0 0 1 1h7"></path></svg>
                   `,
-        eye: `
+    eye: `
                       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <circle cx="12" cy="12" r="3" stroke="#33363F" stroke-width="2"></circle> <path d="M20.188 10.9343C20.5762 11.4056 20.7703 11.6412 20.7703 12C20.7703 12.3588 20.5762 12.5944 20.188 13.0657C18.7679 14.7899 15.6357 18 12 18C8.36427 18 5.23206 14.7899 3.81197 13.0657C3.42381 12.5944 3.22973 12.3588 3.22973 12C3.22973 11.6412 3.42381 11.4056 3.81197 10.9343C5.23206 9.21014 8.36427 6 12 6C15.6357 6 18.7679 9.21014 20.188 10.9343Z" stroke="#33363F" stroke-width="2"></path> </g></svg>
                   `,
-        info: `
+    info: `
                       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"> <path d="M9.14939 7.8313C8.57654 5.92179 10.0064 4 12 4V4C13.9936 4 15.4235 5.92179 14.8506 7.8313L13.2873 13.0422C13.2171 13.2762 13.182 13.3932 13.128 13.4895C12.989 13.7371 12.7513 13.9139 12.4743 13.9759C12.3664 14 12.2443 14 12 14V14C11.7557 14 11.6336 14 11.5257 13.9759C11.2487 13.9139 11.011 13.7371 10.872 13.4895C10.818 13.3932 10.7829 13.2762 10.7127 13.0422L9.14939 7.8313Z" stroke="#33363F" stroke-width="2"></path> <circle cx="12" cy="19" r="2" stroke="#33363F" stroke-width="2"></circle> </g></svg>
                   `,
-        box: `
+    box: `
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-package h-6 w-6" aria-hidden="true"><path d="M11 21.73a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73z"></path><path d="M12 22V12"></path><polyline points="3.29 7 12 12 20.71 7"></polyline><path d="m7.5 4.27 9 5.15"></path></svg>
                   `,
-        device: `
+    device: `
                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-smartphone h-6 w-6" aria-hidden="true"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"></rect><path d="M12 18h.01"></path></svg>
                   `,
-        transactions: `
+    transactions: `
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shopping-cart h-6 w-6" aria-hidden="true"><circle cx="8" cy="21" r="1"></circle><circle cx="19" cy="21" r="1"></circle><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path></svg>
                   `,
-        trend_up: `
+    trend_up: `
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trending-up h-6 w-6" aria-hidden="true"><path d="M16 7h6v6"></path><path d="m22 7-8.5 8.5-5-5L2 17"></path></svg>
                   `,
-        add: `
+    add: `
               <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus h-4 w-4" aria-hidden="true"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
                   `,
-    };
+};
 
-    let mock_data = null;
-    const mockDataReady = DEVELOP_MODE
-        ? import("./mock-data.mjs").then(({mockData}) => {
-            mock_data = mockData;
-        })
-        : Promise.resolve();
+let mock_data = null;
+const mockDataReady = DEVELOP_MODE
+    ? import("./mock-data.mjs").then(({mockData}) => {
+        mock_data = mockData;
+    })
+    : Promise.resolve();
 
-    // -------------End of Global Variables----------
+// -------------End of Global Variables----------
 
 
-    // =========================================================
-    //   SHARED HELPERS
-    //   Used by the router and/or by more than one page module.
-    //   Page-specific helpers stay next to the render*() function
-    //   that owns them, further down in this file.
-    // =========================================================
+// =========================================================
+//   SHARED HELPERS
+//   Used by the router and/or by more than one page module.
+//   Page-specific helpers stay next to the render*() function
+//   that owns them, further down in this file.
+// =========================================================
 
-    // -- Icon system --
-    /**
-     * یک آیکون SVG را بر اساس نام از مجموعه ICONS برمی‌گرداند و اندازه، کلاس و ضخامت خط آن را تنظیم می‌کند.
-     *
-     * @param {string} name - نام آیکون مورد نظر (کلید موجود در آبجکت ICONS).
-     * @param {Object} [options={}] - تنظیمات اختیاری برای شخصی‌سازی آیکون.
-     * @param {number} [options.size=22] - اندازه (عرض و ارتفاع) آیکون بر حسب پیکسل.
-     * @param {string} [options.className=""] - نام کلاس (یا کلاس‌های) CSS که به تگ svg اضافه می‌شود.
-     * @param {number} [options.stroke=2] - ضخامت خط (stroke-width) آیکون.
-     * @returns {string} رشته‌ی HTML/SVG آیکون با تنظیمات اعمال‌شده، یا رشته‌ی خالی در صورت پیدا نشدن آیکون.
-     */
-    function getIcon(name, options = {}) {
-        const {size = 22, className = "", stroke = 2} = options;
+// -- Icon system --
+/**
+ * یک آیکون SVG را بر اساس نام از مجموعه ICONS برمی‌گرداند و اندازه، کلاس و ضخامت خط آن را تنظیم می‌کند.
+ *
+ * @param {string} name - نام آیکون مورد نظر (کلید موجود در آبجکت ICONS).
+ * @param {Object} [options={}] - تنظیمات اختیاری برای شخصی‌سازی آیکون.
+ * @param {number} [options.size=22] - اندازه (عرض و ارتفاع) آیکون بر حسب پیکسل.
+ * @param {string} [options.className=""] - نام کلاس (یا کلاس‌های) CSS که به تگ svg اضافه می‌شود.
+ * @param {number} [options.stroke=2] - ضخامت خط (stroke-width) آیکون.
+ * @returns {string} رشته‌ی HTML/SVG آیکون با تنظیمات اعمال‌شده، یا رشته‌ی خالی در صورت پیدا نشدن آیکون.
+ */
+function getIcon(name, options = {}) {
+    const {size = 22, className = "", stroke = 2} = options;
 
-        let svg = ICONS[name];
+    let svg = ICONS[name];
 
-        if (!svg) return "";
+    if (!svg) return "";
 
-        svg = svg
-            .replace(/width=".*?"/, `width="${size}"`)
-            .replace(/height=".*?"/, `height="${size}"`)
-            .replace(/stroke-width=".*?"/, `stroke-width="${stroke}"`);
+    svg = svg
+        .replace(/width=".*?"/, `width="${size}"`)
+        .replace(/height=".*?"/, `height="${size}"`)
+        .replace(/stroke-width=".*?"/, `stroke-width="${stroke}"`);
 
-        if (className) {
-            svg = svg.replace("<svg", `<svg class="${className}"`);
-        }
-
-        return svg;
+    if (className) {
+        svg = svg.replace("<svg", `<svg class="${className}"`);
     }
 
-    function renderIcons(container = document) {
-        container.querySelectorAll("[data-icon]").forEach((el) => {
-            const name = el.getAttribute("data-icon");
-            const size = el.getAttribute("data-size") || 20;
-            const className = el.getAttribute("data-class") || "";
+    return svg;
+}
 
-            el.outerHTML = getIcon(name, {size, className});
-        });
-    }
+function renderIcons(container = document) {
+    container.querySelectorAll("[data-icon]").forEach((el) => {
+        const name = el.getAttribute("data-icon");
+        const size = el.getAttribute("data-size") || 20;
+        const className = el.getAttribute("data-class") || "";
 
-    // -- Global loading spinner --
-    /**
-     * نمایش یا مخفی‌کردن لودر صفحه
-     * @param {boolean} show - اگر true باشد لودر نمایش داده می‌شود، در غیر این صورت مخفی می‌شود
-     */
-    function showLoader(show) {
-        loader.classList.toggle("hidden", !show);
-    }
-
-    // -- Dev-mode nav link --
-    //---- شروع بخش مخصوص تست دولوپر ----
-
-    function applyDevMode() {
-        const devNavItem = document.querySelector('a[href="#/dev"]');
-        if (devNavItem) {
-            // اگر DEVELOP_MODE فعال نباشد، کلاس hidden اضافه می‌شود تا لینک مخفی شود
-            devNavItem.classList.toggle("hidden", !DEVELOP_MODE);
-        }
-    }
-
-    //---- پایان بخش مخصوص تست دولوپر ----
-
-    // -- Mobile nav drawer (used by every page's navbar) --
-    function toggleMenu() {
-        const nav = document.getElementById("mainNav");
-        const overlay = document.getElementById("overlay");
-
-        nav.classList.toggle("active");
-        overlay.classList.toggle("active");
-    }
-
-    window.addEventListener("hashchange", () => {
-        const nav = document.getElementById("mainNav");
-        const overlay = document.getElementById("overlay");
-
-        nav.classList.remove("active");
-        overlay.classList.remove("active");
+        el.outerHTML = getIcon(name, {size, className});
     });
+}
 
-    // -- Persistent navbar user-menu dropdown (every page) --
-    function toggleUserMenu(event) {
-        const dropdown = event?.currentTarget?.querySelector(".user-dropdown");
+// -- Global loading spinner --
+/**
+ * نمایش یا مخفی‌کردن لودر صفحه
+ * @param {boolean} show - اگر true باشد لودر نمایش داده می‌شود، در غیر این صورت مخفی می‌شود
+ */
+function showLoader(show) {
+    loader.classList.toggle("hidden", !show);
+}
 
-        dropdown.classList.toggle("open");
+// -- Dev-mode nav link --
+//---- شروع بخش مخصوص تست دولوپر ----
+
+function applyDevMode() {
+    const devNavItem = document.querySelector('a[href="#/dev"]');
+    if (devNavItem) {
+        // اگر DEVELOP_MODE فعال نباشد، کلاس hidden اضافه می‌شود تا لینک مخفی شود
+        devNavItem.classList.toggle("hidden", !DEVELOP_MODE);
     }
+}
 
-    function rebootSystem() {
-        showModal({
-            message: "آیا از ری‌استارت سیستم مطمئن هستید؟",
-            type: "reboot",
-            onConfirm: async () => {
-                let seconds = 10;
+//---- پایان بخش مخصوص تست دولوپر ----
 
-                showModal({
-                    message: `
+// -- Mobile nav drawer (used by every page's navbar) --
+function toggleMenu() {
+    const nav = document.getElementById("mainNav");
+    const overlay = document.getElementById("overlay");
+
+    nav.classList.toggle("active");
+    overlay.classList.toggle("active");
+}
+
+window.addEventListener("hashchange", () => {
+    const nav = document.getElementById("mainNav");
+    const overlay = document.getElementById("overlay");
+
+    nav.classList.remove("active");
+    overlay.classList.remove("active");
+});
+
+// -- Persistent navbar user-menu dropdown (every page) --
+function toggleUserMenu(event) {
+    const dropdown = event?.currentTarget?.querySelector(".user-dropdown");
+
+    dropdown.classList.toggle("open");
+}
+
+function rebootSystem() {
+    showModal({
+        message: "آیا از ری‌استارت سیستم مطمئن هستید؟",
+        type: "reboot",
+        onConfirm: async () => {
+            let seconds = 10;
+
+            showModal({
+                message: `
                               <div style="text-align:center">
 
                                   <div class="spinner" style="margin:10px auto;"></div>
@@ -270,74 +270,74 @@
 
                               </div>
                           `,
-                    type: "reboot",
-                    showConfirm: false,
-                });
+                type: "reboot",
+                showConfirm: false,
+            });
 
-                const interval = setInterval(() => {
-                    seconds--;
+            const interval = setInterval(() => {
+                seconds--;
 
-                    const counter = document.getElementById("rebootCounter");
-                    if (counter) counter.textContent = seconds;
+                const counter = document.getElementById("rebootCounter");
+                if (counter) counter.textContent = seconds;
 
-                    if (seconds <= 0) {
-                        clearInterval(interval);
-                        location.reload();
-                    }
-                }, 1000);
-            },
-        });
-    }
+                if (seconds <= 0) {
+                    clearInterval(interval);
+                    location.reload();
+                }
+            }, 1000);
+        },
+    });
+}
 
-    // -- Generic collapsible drawer (info / settings / factory / service-configuration pages) --
-    function toggleDrawer(id) {
-        const el = document.getElementById(id);
-        const allDrawers = document.querySelectorAll(".drawer-content");
+// -- Generic collapsible drawer (info / settings / factory / service-configuration pages) --
+function toggleDrawer(id) {
+    const el = document.getElementById(id);
+    const allDrawers = document.querySelectorAll(".drawer-content");
 
-        allDrawers.forEach((d) => {
-            if (d.id !== id) d.style.display = "none";
-        });
+    allDrawers.forEach((d) => {
+        if (d.id !== id) d.style.display = "none";
+    });
 
-        el.style.display = el.style.display === "block" ? "none" : "block";
-    }
+    el.style.display = el.style.display === "block" ? "none" : "block";
+}
 
-    // -- Generic confirm/action modal (balance / clients / factory / prices / settings pages) --
-    /**
-     * یک مودال (پنجره‌ی گفتگو) سفارشی روی صفحه نمایش می‌دهد که می‌تواند
-     * پیام، آیکون متناسب با نوع، دکمه‌های تایید/لغو و محتوای HTML اضافی داشته باشد.
-     *
-     * @param {Object} params - تنظیمات مودال.
-     * @param {string} [params.message=""] - متن پیامی که داخل مودال نمایش داده می‌شود (پشتیبانی از HTML).
-     * @param {"info"|"noType"|"success"|"warning"|"danger"|"reboot"} [params.type="info"] - نوع مودال که رنگ و آیکون آن را مشخص می‌کند.
-     * @param {?Function} [params.onConfirm=null] - تابعی که با کلیک روی دکمه‌ی «تایید» اجرا می‌شود؛ خود المان مودال به‌عنوان آرگومان به آن پاس داده می‌شود.
-     * @param {?Function} [params.onCancel=null] - تابعی که با کلیک روی دکمه‌ی «لغو» اجرا می‌شود.
-     * @param {boolean} [params.showConfirm=true] - در صورت true بودن، دکمه‌های تایید و لغو نمایش داده می‌شوند.
-     * @param {string} [params.extraHtml=""] - محتوای HTML اضافی که بین پیام و دکمه‌ها درج می‌شود (مثلاً فرم یا توضیحات بیشتر).
-     * @returns {void}
-     */
-    function showModal({
-                           message = "",
-                           type = "info",
-                           onConfirm = null,
-                           onCancel = null,
-                           showConfirm = true,
-                           extraHtml = "",
-                       }) {
-        const types = {
-            info: {color: "var(--info)", icon: getIcon("info")},
-            noType: {color: "", icon: ""},
-            success: {color: "var(--success)", icon: getIcon("success")},
-            warning: {color: "var(--warning)", icon: getIcon("warning")},
-            danger: {color: "var(--danger)", icon: getIcon("danger")},
-            reboot: {color: "var(--info)", icon: getIcon("refresh")},
-        };
+// -- Generic confirm/action modal (balance / clients / factory / prices / settings pages) --
+/**
+ * یک مودال (پنجره‌ی گفتگو) سفارشی روی صفحه نمایش می‌دهد که می‌تواند
+ * پیام، آیکون متناسب با نوع، دکمه‌های تایید/لغو و محتوای HTML اضافی داشته باشد.
+ *
+ * @param {Object} params - تنظیمات مودال.
+ * @param {string} [params.message=""] - متن پیامی که داخل مودال نمایش داده می‌شود (پشتیبانی از HTML).
+ * @param {"info"|"noType"|"success"|"warning"|"danger"|"reboot"} [params.type="info"] - نوع مودال که رنگ و آیکون آن را مشخص می‌کند.
+ * @param {?Function} [params.onConfirm=null] - تابعی که با کلیک روی دکمه‌ی «تایید» اجرا می‌شود؛ خود المان مودال به‌عنوان آرگومان به آن پاس داده می‌شود.
+ * @param {?Function} [params.onCancel=null] - تابعی که با کلیک روی دکمه‌ی «لغو» اجرا می‌شود.
+ * @param {boolean} [params.showConfirm=true] - در صورت true بودن، دکمه‌های تایید و لغو نمایش داده می‌شوند.
+ * @param {string} [params.extraHtml=""] - محتوای HTML اضافی که بین پیام و دکمه‌ها درج می‌شود (مثلاً فرم یا توضیحات بیشتر).
+ * @returns {void}
+ */
+function showModal({
+                       message = "",
+                       type = "info",
+                       onConfirm = null,
+                       onCancel = null,
+                       showConfirm = true,
+                       extraHtml = "",
+                   }) {
+    const types = {
+        info: {color: "var(--info)", icon: getIcon("info")},
+        noType: {color: "", icon: ""},
+        success: {color: "var(--success)", icon: getIcon("success")},
+        warning: {color: "var(--warning)", icon: getIcon("warning")},
+        danger: {color: "var(--danger)", icon: getIcon("danger")},
+        reboot: {color: "var(--info)", icon: getIcon("refresh")},
+    };
 
-        const t = types[type] || types.info;
+    const t = types[type] || types.info;
 
-        const modal = document.createElement("div");
-        modal.className = "app-modal";
+    const modal = document.createElement("div");
+    modal.className = "app-modal";
 
-        modal.innerHTML = `
+    modal.innerHTML = `
               <div class="app-modal-box">
 
                   <div class="app-modal-header" style="color:${t.color}">
@@ -351,138 +351,138 @@
                   ${extraHtml}
 
                   ${
-            showConfirm
-                ? `
+        showConfirm
+            ? `
                       <div class="app-modal-actions">
                           <button class="btn modal-confirm"> تایید</button>
                           <button class="btn btn-outline modal-cancel">لغو</button>
                       </div>
                       `
-                : ""
-        }
+            : ""
+    }
 
               </div>
               `;
 
-        document.body.appendChild(modal);
+    document.body.appendChild(modal);
 
-        if (showConfirm) {
-            const cancelBtn = modal.querySelector(".modal-cancel");
-            const confirmBtn = modal.querySelector(".modal-confirm");
+    if (showConfirm) {
+        const cancelBtn = modal.querySelector(".modal-cancel");
+        const confirmBtn = modal.querySelector(".modal-confirm");
 
-            cancelBtn.onclick = () => {
-                modal.remove();
-                if (onCancel) onCancel();
-            };
+        cancelBtn.onclick = () => {
+            modal.remove();
+            if (onCancel) onCancel();
+        };
 
-            confirmBtn.onclick = () => {
-                if (onConfirm) onConfirm(modal);
-            };
-        }
+        confirmBtn.onclick = () => {
+            if (onConfirm) onConfirm(modal);
+        };
     }
+}
 
-    // -- Generic label/value row renderer (info / service-configuration pages) --
-    function infoItem(label, value) {
-        return `
+// -- Generic label/value row renderer (info / service-configuration pages) --
+function infoItem(label, value) {
+    return `
                       <p>
                       <strong>${label}:</strong>
                       <span>${value ?? " - "}</span>
                       </p>
                       `;
-    }
+}
 
-    // -- Router support --
-    function updateActiveNav(route) {
-        document.querySelectorAll(".nav-item").forEach((el) => {
-            el.classList.toggle("active", el.getAttribute("href") === route);
-        });
-    }
+// -- Router support --
+function updateActiveNav(route) {
+    document.querySelectorAll(".nav-item").forEach((el) => {
+        el.classList.toggle("active", el.getAttribute("href") === route);
+    });
+}
 
-    function updateNotifBadge(count) {
-        const badges = document.querySelectorAll(".notif-badge");
+function updateNotifBadge(count) {
+    const badges = document.querySelectorAll(".notif-badge");
 
-        badges.forEach((badge) => {
-            if (count > 0) {
-                badge.textContent = count;
-                badge.classList.remove("hidden");
-            } else {
-                badge.classList.add("hidden");
-            }
-        });
-    }
-
-    // -- Core network / notification / session infra --
-    // --- Helper Functions ---
-
-    async function api(url, method = "GET", data = null) {
-
-        const options = {
-            method,
-            headers: {
-                Authorization: "Bearer " + localStorage.getItem("rm_token"),
-            },
-        };
-        if (data) {
-            options.headers["Content-Type"] = "application/json";
-            options.body = JSON.stringify(data);
+    badges.forEach((badge) => {
+        if (count > 0) {
+            badge.textContent = count;
+            badge.classList.remove("hidden");
+        } else {
+            badge.classList.add("hidden");
         }
-        try {
-            const res = await fetch(url, options);
+    });
+}
 
-            if (res.status === 401) {
-                showToast(
-                    "error",
-                    `401`,
-                    'دسترسی غیر مجاز ❌',
-                );
-                setTimeout(() => {
-                    logout();
-                }, 1000)
+// -- Core network / notification / session infra --
+// --- Helper Functions ---
 
-                return;
-            }
+async function api(url, method = "GET", data = null) {
 
-            if (res.status && res.status >= 500 && res.status < 600) {
-                const err = new Error(`خطای سرور. لطفاً کمی بعد دوباره تلاش کنید.`);
-                err.isServerError = true;
-                err.statusCode = res.status
-                throw err;
-            }
-
-            return await res.json();
-
-        } catch (e) {
-            if (e.isServerError) {
-                showToast(
-                    "error",
-                    `${e.statusCode}`,
-                    e.message,
-                );
-            } else {
-                showToast(
-                    "error",
-                    "خطا",
-                    'خطایی رخ داد. اتصال اینترنت خود را بررسی کنید.',
-                );
-            }
-            return {};
-        }
+    const options = {
+        method,
+        headers: {
+            Authorization: "Bearer " + localStorage.getItem("rm_token"),
+        },
+    };
+    if (data) {
+        options.headers["Content-Type"] = "application/json";
+        options.body = JSON.stringify(data);
     }
+    try {
+        const res = await fetch(url, options);
 
-    /**
-     * Toast Notification System
-     * @param {'success' | 'warning' | 'info' | 'error'} type
-     * @param {string} title
-     * @param {string} message
-     * @param {number} timeout
-     */
-    function showToast(type = "info", title = "اعلان", message = "", timeout = 5000) {
-        let stack = document.getElementById("toastStack");
+        if (res.status === 401) {
+            showToast(
+                "error",
+                `401`,
+                'دسترسی غیر مجاز ❌',
+            );
+            setTimeout(() => {
+                logout();
+            }, 1000)
 
-        if (!stack) {
-            stack = document.createElement("div");
-            stack.id = "toastStack";
-            stack.style.cssText = `
+            return;
+        }
+
+        if (res.status && res.status >= 500 && res.status < 600) {
+            const err = new Error(`خطای سرور. لطفاً کمی بعد دوباره تلاش کنید.`);
+            err.isServerError = true;
+            err.statusCode = res.status
+            throw err;
+        }
+
+        return await res.json();
+
+    } catch (e) {
+        if (e.isServerError) {
+            showToast(
+                "error",
+                `${e.statusCode}`,
+                e.message,
+            );
+        } else {
+            showToast(
+                "error",
+                "خطا",
+                'خطایی رخ داد. اتصال اینترنت خود را بررسی کنید.',
+            );
+        }
+        return {};
+    }
+}
+
+/**
+ * Toast Notification System
+ * @param {'success' | 'warning' | 'info' | 'error'} type
+ * @param {string} title
+ * @param {string} message
+ * @param {number} timeout
+ */
+function showToast(type = "info", title = "اعلان", message = "", timeout = 5000) {
+    let stack = document.getElementById("toastStack");
+
+    if (!stack) {
+        stack = document.createElement("div");
+        stack.id = "toastStack";
+        stack.style.cssText = `
                 position: fixed;
                 top: 20px;
                 left: 50%;
@@ -494,12 +494,12 @@
                 gap: 10px;
                 pointer-events: none;
             `;
-            document.body.appendChild(stack);
-        }
+        document.body.appendChild(stack);
+    }
 
-        const el = document.createElement("div");
-        el.className = `toast toast-${type}`;
-        el.style.cssText = `
+    const el = document.createElement("div");
+    el.className = `toast toast-${type}`;
+    el.style.cssText = `
             min-width: 280px;
             max-width: 90vw;
             background: #fff;
@@ -517,16 +517,16 @@
             border-right: 4px solid #3b82f6;
         `;
 
-        const colors = {
-            success: "#22c55e",
-            error: "#ef4444",
-            warning: "#f59e0b",
-            info: "#3b82f6"
-        };
+    const colors = {
+        success: "#22c55e",
+        error: "#ef4444",
+        warning: "#f59e0b",
+        info: "#3b82f6"
+    };
 
-        el.style.borderRightColor = colors[type] || colors.info;
+    el.style.borderRightColor = colors[type] || colors.info;
 
-        el.innerHTML = `
+    el.innerHTML = `
             <div class="toast-content">
                 <div class="toast-title">${title}</div>
                 <div class="toast-message" >${message}</div>
@@ -534,308 +534,308 @@
             <button class="toast-close" aria-label="close" >✕</button>
         `;
 
-        let closed = false;
-        let startX = 0;
-        let currentX = 0;
-        let isDragging = false;
+    let closed = false;
+    let startX = 0;
+    let currentX = 0;
+    let isDragging = false;
 
-        const close = () => {
-            if (closed) return;
-            closed = true;
-            el.style.opacity = "0";
-            el.style.transform = "translateY(-10px) scale(.96)";
-            setTimeout(() => el.remove(), 250);
-        };
+    const close = () => {
+        if (closed) return;
+        closed = true;
+        el.style.opacity = "0";
+        el.style.transform = "translateY(-10px) scale(.96)";
+        setTimeout(() => el.remove(), 250);
+    };
 
-        const swipeClose = (direction) => {
-            if (closed) return;
-            closed = true;
-            el.style.opacity = "0";
-            el.style.transform = `translateX(${direction > 0 ? 120 : -120}px)`;
-            setTimeout(() => el.remove(), 250);
-        };
+    const swipeClose = (direction) => {
+        if (closed) return;
+        closed = true;
+        el.style.opacity = "0";
+        el.style.transform = `translateX(${direction > 0 ? 120 : -120}px)`;
+        setTimeout(() => el.remove(), 250);
+    };
 
-        el.querySelector(".toast-close").addEventListener("click", close);
+    el.querySelector(".toast-close").addEventListener("click", close);
 
-        el.addEventListener("touchstart", (e) => {
-            startX = e.touches[0].clientX;
-            currentX = startX;
-            isDragging = true;
-            el.style.transition = "none";
-        });
+    el.addEventListener("touchstart", (e) => {
+        startX = e.touches[0].clientX;
+        currentX = startX;
+        isDragging = true;
+        el.style.transition = "none";
+    });
 
-        el.addEventListener("touchmove", (e) => {
-            if (!isDragging) return;
-            currentX = e.touches[0].clientX;
-            const diffX = currentX - startX;
+    el.addEventListener("touchmove", (e) => {
+        if (!isDragging) return;
+        currentX = e.touches[0].clientX;
+        const diffX = currentX - startX;
 
-            el.style.transform = `translateX(${diffX}px)`;
-            el.style.opacity = `${Math.max(0.4, 1 - Math.abs(diffX) / 200)}`;
-        });
+        el.style.transform = `translateX(${diffX}px)`;
+        el.style.opacity = `${Math.max(0.4, 1 - Math.abs(diffX) / 200)}`;
+    });
 
-        el.addEventListener("touchend", () => {
-            if (!isDragging) return;
-            isDragging = false;
+    el.addEventListener("touchend", () => {
+        if (!isDragging) return;
+        isDragging = false;
 
-            const diffX = currentX - startX;
-            el.style.transition = "transform .25s ease, opacity .25s ease";
+        const diffX = currentX - startX;
+        el.style.transition = "transform .25s ease, opacity .25s ease";
 
-            if (Math.abs(diffX) > 80) {
-                swipeClose(diffX);
-            } else {
-                el.style.transform = "translateX(0)";
-                el.style.opacity = "1";
-            }
-        });
-
-        stack.appendChild(el);
-
-        if (timeout > 0) {
-            setTimeout(close, timeout);
+        if (Math.abs(diffX) > 80) {
+            swipeClose(diffX);
+        } else {
+            el.style.transform = "translateX(0)";
+            el.style.opacity = "1";
         }
-    }
+    });
 
-    function logout() {
-        localStorage.removeItem("rm_token");
-        localStorage.removeItem("rm_user");
+    stack.appendChild(el);
+
+    if (timeout > 0) {
+        setTimeout(close, timeout);
+    }
+}
+
+function logout() {
+    localStorage.removeItem("rm_token");
+    localStorage.removeItem("rm_user");
+    window.location.href = "index.html";
+}
+
+// =========================================================
+//   ROUTER / APP BOOTSTRAP
+// =========================================================
+
+document.addEventListener("DOMContentLoaded", () => {
+    renderIcons();
+})
+
+
+// ====================  (Routing) ====================
+
+applyDevMode();
+
+window.addEventListener("hashchange", router);
+
+window.addEventListener("load", router);
+
+async function router() {
+
+    await mockDataReady;
+
+    const route = location.hash || "#/";
+
+    if (route === lastRoute) return;
+    lastRoute = route;
+
+    const token = localStorage.getItem("rm_token");
+
+    if (!token) {
         window.location.href = "index.html";
+        return;
     }
 
-    // =========================================================
-    //   ROUTER / APP BOOTSTRAP
-    // =========================================================
+    updateNotifBadge(25);
 
-    document.addEventListener("DOMContentLoaded", () => {
-        renderIcons();
-    })
+    updateActiveNav(route);
 
-
-    // ====================  (Routing) ====================
-
-    applyDevMode();
-
-    window.addEventListener("hashchange", router);
-
-    window.addEventListener("load", router);
-
-    async function router() {
-
-        await mockDataReady;
-
-        const route = location.hash || "#/";
-
-        if (route === lastRoute) return;
-        lastRoute = route;
-
-        const token = localStorage.getItem("rm_token");
-
-        if (!token) {
-            window.location.href = "index.html";
-            return;
-        }
-
-        updateNotifBadge(25);
-
-        updateActiveNav(route);
-
-        if (ws) {
-            ws.close();
-            ws = null;
-        }
+    if (ws) {
+        ws.close();
+        ws = null;
+    }
 
 
-        switch (route) {
-            case "#/":
-                await renderDashboard();
-                break;
-            case "#/notifications":
-                renderNotifications();
-                break;
-            case "#/prices":
-                await renderPrices();
-                break;
-            case "#/clients":
-                await renderClients();
-                break;
-            case "#/balance":
-                await renderBalance();
-                break;
-            case "#/settings":
-                await renderSettings();
-                break;
-            case "#/factory":
-                await renderFactory();
-                break;
-            case "#/logs":
-                renderLogs();
-                break;
-            case "#/info":
-                await renderInfo();
-                break;
-            case "#/service-configuration":
-                await renderServiceConfiguration();
-                break;
-            case "#/dev":
-                if (!DEVELOP_MODE) {
-                    renderError(404);
-                    break;
-                }
-                await renderDevelop();
-                break;
-            default:
+    switch (route) {
+        case "#/":
+            await renderDashboard();
+            break;
+        case "#/notifications":
+            renderNotifications();
+            break;
+        case "#/prices":
+            await renderPrices();
+            break;
+        case "#/clients":
+            await renderClients();
+            break;
+        case "#/balance":
+            await renderBalance();
+            break;
+        case "#/settings":
+            await renderSettings();
+            break;
+        case "#/factory":
+            await renderFactory();
+            break;
+        case "#/logs":
+            renderLogs();
+            break;
+        case "#/info":
+            await renderInfo();
+            break;
+        case "#/service-configuration":
+            await renderServiceConfiguration();
+            break;
+        case "#/dev":
+            if (!DEVELOP_MODE) {
                 renderError(404);
-        }
+                break;
+            }
+            await renderDevelop();
+            break;
+        default:
+            renderError(404);
+    }
+}
+
+
+// --- View Handlers  ---
+
+function formatNumber(value) {
+    return new Intl.NumberFormat("fa-IR").format(Number(value) || 0);
+}
+
+function safe(value) {
+    if (value === undefined || value === null || value === "") return "--";
+    return value;
+}
+
+
+/**
+ * فاصله‌ی (گام) نمایش لیبل‌ها روی محور را بر اساس بازه‌ی زمانی مشخص می‌کند
+ * تا از شلوغی و همپوشانی لیبل‌ها روی نمودار جلوگیری شود.
+ *
+ * @param {string} period - نوع بازه‌ی زمانی ("day"، "week"، "month" یا "year").
+ * @param {number} totalLabels - تعداد کل لیبل‌هایی که قرار است نمایش داده شوند.
+ * @returns {number} فاصله‌ی نمایش لیبل‌ها؛ یعنی از هر چند لیبل، یکی نمایش داده شود.
+ */
+function getLabelStep(period, totalLabels) {
+    switch (period) {
+        case "day":
+            return Math.max(1, Math.ceil(totalLabels / 6));
+
+        case "week":
+            return 1;
+
+        case "month":
+            return 5;
+
+        case "year":
+            return 1;
+
+        default:
+            return 1;
+    }
+}
+
+function getSalesTrendData(period = "week") {
+    const salesChart = dashboardRawData.sales_chart || {};
+    const source = salesChart[period];
+
+    if (!source) return null;
+
+    const firstSeries = Array.isArray(source.series)
+        ? source.series[0] || {}
+        : {};
+
+    return {
+        period: source.period,
+        currency: source.currency || "IRR",
+        labels: source.labels || [],
+        series: [
+            {
+                key: "sales",
+                data: firstSeries.sales || [],
+            },
+            {
+                key: "transactions",
+                data: firstSeries.transactions || [],
+            },
+        ],
+        meta: {
+            from: source.meta?.from ?? "--",
+            to: source.meta?.to ?? "--",
+            total_sales: source.meta?.total_sales ?? 0,
+            total_transactions: source.meta?.total_transactions ?? 0,
+        },
+    };
+}
+
+function getTrendPeriodLabel(period) {
+    if (period === "24h") return "۲۴ ساعت گذشته";
+    if (period === "7d") return "۷ روز گذشته";
+    if (period === "31d") return "ماه جاری";
+    if (period === "12m") return "۱۲ ماه گذشته";
+    return "--";
+}
+
+function renderSalesTrendChart(container, trendData) {
+    if (!container || !trendData) return;
+
+    const labels = trendData.labels || [];
+
+    const labelStep = getLabelStep(salesTrendPeriod, labels.length);
+
+    const salesSeries =
+        (trendData.series || []).find((s) => s.key === "sales")?.data || [];
+    const transactionsSeries =
+        (trendData.series || []).find((s) => s.key === "transactions")
+            ?.data || [];
+
+    if (!salesSeries.length) {
+        container.innerHTML = `<div class="empty-state">داده‌ای برای نمایش نمودار وجود ندارد</div>`;
+        return;
     }
 
+    const width = 100;
+    const height = 42;
+    const paddingX = 2;
+    const paddingY = 4;
 
-    // --- View Handlers  ---
+    const max = Math.max(...salesSeries, 1);
+    const min = 0;
+    const range = Math.max(max - min, 1);
 
-    function formatNumber(value) {
-        return new Intl.NumberFormat("fa-IR").format(Number(value) || 0);
-    }
+    const stepX =
+        labels.length > 1 ? (width - paddingX * 2) / (labels.length - 1) : 0;
 
-    function safe(value) {
-        if (value === undefined || value === null || value === "") return "--";
-        return value;
-    }
-
-
-    /**
-     * فاصله‌ی (گام) نمایش لیبل‌ها روی محور را بر اساس بازه‌ی زمانی مشخص می‌کند
-     * تا از شلوغی و همپوشانی لیبل‌ها روی نمودار جلوگیری شود.
-     *
-     * @param {string} period - نوع بازه‌ی زمانی ("day"، "week"، "month" یا "year").
-     * @param {number} totalLabels - تعداد کل لیبل‌هایی که قرار است نمایش داده شوند.
-     * @returns {number} فاصله‌ی نمایش لیبل‌ها؛ یعنی از هر چند لیبل، یکی نمایش داده شود.
-     */
-    function getLabelStep(period, totalLabels) {
-        switch (period) {
-            case "day":
-                return Math.max(1, Math.ceil(totalLabels / 6));
-
-            case "week":
-                return 1;
-
-            case "month":
-                return 5;
-
-            case "year":
-                return 1;
-
-            default:
-                return 1;
-        }
-    }
-
-    function getSalesTrendData(period = "week") {
-        const salesChart = dashboardRawData.sales_chart || {};
-        const source = salesChart[period];
-
-        if (!source) return null;
-
-        const firstSeries = Array.isArray(source.series)
-            ? source.series[0] || {}
-            : {};
+    const pointData = salesSeries.map((value, i) => {
+        const x = paddingX + i * stepX;
+        const normalized = (value - min) / range;
+        const y = height - paddingY - normalized * (height - paddingY * 2);
 
         return {
-            period: source.period,
-            currency: source.currency || "IRR",
-            labels: source.labels || [],
-            series: [
-                {
-                    key: "sales",
-                    data: firstSeries.sales || [],
-                },
-                {
-                    key: "transactions",
-                    data: firstSeries.transactions || [],
-                },
-            ],
-            meta: {
-                from: source.meta?.from ?? "--",
-                to: source.meta?.to ?? "--",
-                total_sales: source.meta?.total_sales ?? 0,
-                total_transactions: source.meta?.total_transactions ?? 0,
-            },
+            x,
+            y,
+            sales: Number(value || 0),
+            transactions: Number(transactionsSeries[i] || 0),
+            label: labels[i] || "--",
         };
-    }
+    });
 
-    function getTrendPeriodLabel(period) {
-        if (period === "24h") return "۲۴ ساعت گذشته";
-        if (period === "7d") return "۷ روز گذشته";
-        if (period === "31d") return "ماه جاری";
-        if (period === "12m") return "۱۲ ماه گذشته";
-        return "--";
-    }
+    const points = pointData
+        .map((point) => `${point.x},${point.y.toFixed(2)}`)
+        .join(" ");
 
-    function renderSalesTrendChart(container, trendData) {
-        if (!container || !trendData) return;
+    const areaPath = (() => {
+        const firstX = paddingX;
+        const lastX = paddingX + stepX * (salesSeries.length - 1);
+        const baseY = height - paddingY;
 
-        const labels = trendData.labels || [];
+        let path = `M ${firstX} ${baseY} `;
+        path += `L ${pointData[0].x} ${pointData[0].y} `;
 
-        const labelStep = getLabelStep(salesTrendPeriod, labels.length);
-
-        const salesSeries =
-            (trendData.series || []).find((s) => s.key === "sales")?.data || [];
-        const transactionsSeries =
-            (trendData.series || []).find((s) => s.key === "transactions")
-                ?.data || [];
-
-        if (!salesSeries.length) {
-            container.innerHTML = `<div class="empty-state">داده‌ای برای نمایش نمودار وجود ندارد</div>`;
-            return;
+        for (let i = 1; i < pointData.length; i++) {
+            path += `L ${pointData[i].x} ${pointData[i].y} `;
         }
 
-        const width = 100;
-        const height = 42;
-        const paddingX = 2;
-        const paddingY = 4;
+        path += `L ${lastX} ${baseY} Z`;
+        return path;
+    })();
 
-        const max = Math.max(...salesSeries, 1);
-        const min = 0;
-        const range = Math.max(max - min, 1);
+    const color = "#0ea5e9";
+    const gradientId = `salesGradient-${Math.random().toString(36).slice(2, 8)}`;
 
-        const stepX =
-            labels.length > 1 ? (width - paddingX * 2) / (labels.length - 1) : 0;
-
-        const pointData = salesSeries.map((value, i) => {
-            const x = paddingX + i * stepX;
-            const normalized = (value - min) / range;
-            const y = height - paddingY - normalized * (height - paddingY * 2);
-
-            return {
-                x,
-                y,
-                sales: Number(value || 0),
-                transactions: Number(transactionsSeries[i] || 0),
-                label: labels[i] || "--",
-            };
-        });
-
-        const points = pointData
-            .map((point) => `${point.x},${point.y.toFixed(2)}`)
-            .join(" ");
-
-        const areaPath = (() => {
-            const firstX = paddingX;
-            const lastX = paddingX + stepX * (salesSeries.length - 1);
-            const baseY = height - paddingY;
-
-            let path = `M ${firstX} ${baseY} `;
-            path += `L ${pointData[0].x} ${pointData[0].y} `;
-
-            for (let i = 1; i < pointData.length; i++) {
-                path += `L ${pointData[i].x} ${pointData[i].y} `;
-            }
-
-            path += `L ${lastX} ${baseY} Z`;
-            return path;
-        })();
-
-        const color = "#0ea5e9";
-        const gradientId = `salesGradient-${Math.random().toString(36).slice(2, 8)}`;
-
-        container.innerHTML = `
+    container.innerHTML = `
                 <div class="sales-trend-header">
                     <div>
                         <h3>نمودار فروش</h3>
@@ -881,8 +881,8 @@
                         ></polyline>
 
                         ${pointData
-            .map(
-                (point) => `
+        .map(
+            (point) => `
                                     <g
                                         class="chart-point-group"
                                         data-label="${safe(point.label)}"
@@ -893,24 +893,24 @@
                                         <circle cx="${point.x}" cy="${point.y}" r="2" fill="transparent"></circle>
                                     </g>
                                 `,
-            )
-            .join("")}
+        )
+        .join("")}
                     </svg>
                 </div>
 
                  <div class="sales-trend-labels" style="--label-count: ${labels.length};">
                         ${labels
-            .map((label, index) => {
-                const isLast = index === labels.length - 1;
-                const isVisible = index % labelStep === 0 || isLast;
+        .map((label, index) => {
+            const isLast = index === labels.length - 1;
+            const isVisible = index % labelStep === 0 || isLast;
 
-                return `
+            return `
                                     <span class="${isVisible ? "" : "is-hidden"}">
                                         ${safe(label)}
                                     </span>
                                 `;
-            })
-            .join("")}
+        })
+        .join("")}
                     </div>
 
 
@@ -928,252 +928,252 @@
                 </div>
             `;
 
-        container.querySelectorAll("[data-period]").forEach((btn) => {
-            btn.addEventListener("click", () => {
-                salesTrendPeriod = btn.dataset.period;
-                renderDashboard();
-            });
+    container.querySelectorAll("[data-period]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+            salesTrendPeriod = btn.dataset.period;
+            renderDashboard();
         });
+    });
 
-        const chart = container.querySelector(".sales-trend-chart");
-        const tooltip = container.querySelector(".sales-trend-tooltip");
-        const pointGroups = container.querySelectorAll(".chart-point-group");
+    const chart = container.querySelector(".sales-trend-chart");
+    const tooltip = container.querySelector(".sales-trend-tooltip");
+    const pointGroups = container.querySelectorAll(".chart-point-group");
 
-        pointGroups.forEach((point) => {
-            point.addEventListener("mouseenter", () => {
-                const label = point.dataset.label || "--";
-                const sales = formatNumber(Number(point.dataset.sales || 0));
-                const transactions = formatNumber(
-                    Number(point.dataset.transactions || 0),
-                );
+    pointGroups.forEach((point) => {
+        point.addEventListener("mouseenter", () => {
+            const label = point.dataset.label || "--";
+            const sales = formatNumber(Number(point.dataset.sales || 0));
+            const transactions = formatNumber(
+                Number(point.dataset.transactions || 0),
+            );
 
-                tooltip.innerHTML = `
+            tooltip.innerHTML = `
                         <div><strong>${label}</strong></div>
                         <div>فروش: ${sales}</div>
                         <div>تراکنش: ${transactions}</div>
                     `;
-                tooltip.style.display = "block";
-            });
-
-            point.addEventListener("mousemove", (event) => {
-                const rect = chart.getBoundingClientRect();
-                const left = event.clientX - rect.left;
-                const top = event.clientY - rect.top;
-
-                tooltip.style.left = `${left + 12}px`;
-                tooltip.style.top = `${top - 12}px`;
-            });
-
-            point.addEventListener("mouseleave", () => {
-                tooltip.style.display = "none";
-            });
+            tooltip.style.display = "block";
         });
-    }
 
-    /**
-     * یک مقدار تاریخ/زمان (رشته یا شیء Date یا هر ورودی قابل تبدیل به Date) را
-     * به فرمت تاریخ فارسی (تقویم شمسی) و خوانا برای نمایش تبدیل می‌کند.
-     *
-     * @param {string|number|Date} value - مقدار تاریخ ورودی (معمولاً رشته‌ی دریافتی از API).
-     * @param {boolean} [showTime=true] - در صورت true بودن، ساعت و دقیقه هم به خروجی اضافه می‌شود.
-     * @returns {string} تاریخ (و در صورت نیاز ساعت) فرمت‌شده به صورت فارسی؛
-     *                    اگر مقدار ورودی خالی باشد "--" و اگر نامعتبر باشد همان مقدار اولیه برگردانده می‌شود.
-     */
-    function formatApiDateTime(value, showTime = true) {
-        if (!value) return "--";
+        point.addEventListener("mousemove", (event) => {
+            const rect = chart.getBoundingClientRect();
+            const left = event.clientX - rect.left;
+            const top = event.clientY - rect.top;
 
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) return value;
+            tooltip.style.left = `${left + 12}px`;
+            tooltip.style.top = `${top - 12}px`;
+        });
 
-        const options = {
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-        };
+        point.addEventListener("mouseleave", () => {
+            tooltip.style.display = "none";
+        });
+    });
+}
 
-        if (showTime) {
-            options.hour = "2-digit";
-            options.minute = "2-digit";
-        }
+/**
+ * یک مقدار تاریخ/زمان (رشته یا شیء Date یا هر ورودی قابل تبدیل به Date) را
+ * به فرمت تاریخ فارسی (تقویم شمسی) و خوانا برای نمایش تبدیل می‌کند.
+ *
+ * @param {string|number|Date} value - مقدار تاریخ ورودی (معمولاً رشته‌ی دریافتی از API).
+ * @param {boolean} [showTime=true] - در صورت true بودن، ساعت و دقیقه هم به خروجی اضافه می‌شود.
+ * @returns {string} تاریخ (و در صورت نیاز ساعت) فرمت‌شده به صورت فارسی؛
+ *                    اگر مقدار ورودی خالی باشد "--" و اگر نامعتبر باشد همان مقدار اولیه برگردانده می‌شود.
+ */
+function formatApiDateTime(value, showTime = true) {
+    if (!value) return "--";
 
-        return new Intl.DateTimeFormat("fa-IR", options).format(date);
-    }
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return value;
 
-
-    function mapDashboardData(apiData = {}) {
-        if (!apiData) return;
-
-        const today = apiData.today || {};
-        const speaker = apiData.speaker || {};
-        const lastSale = apiData.last_sale || {};
-        const mostSold = apiData.most_sold || {};
-        const wifi = apiData.device?.wifi || {};
-        const device = apiData.device?.info || {};
-
-        const latestActivity = Array.isArray(apiData.latest_activity)
-            ? apiData.latest_activity
-            : [];
-        const warnings = Array.isArray(apiData.warnings)
-            ? apiData.warnings
-            : [];
-        const notifications = Array.isArray(apiData.notifications)
-            ? apiData.notifications
-            : [];
-
-        return {
-            today_sales: today.sales ?? 0,
-            today_transactions: today.transactions ?? 0,
-            active_products: today.active_products ?? 0,
-            device_status: device.status,
-            device_model: device?.model,
-            device_uptime: device?.uptime ?? 0,
-
-            wifi: {
-                rssi: wifi.rssi ?? "",
-                ssid: wifi.ssid ?? "",
-                connected: wifi.connected ?? "",
-            },
-
-            board_version: "--",
-
-            last_operation: {
-                title: latestActivity[0]?.title ?? "--",
-                time: formatApiDateTime(latestActivity[0]?.time),
-                status: latestActivity[0]?.status ?? "--",
-            },
-
-            speaker: {
-                volume: speaker.volume ?? 75,
-                muted: speaker.muted ?? false,
-            },
-
-            last_sale: {
-                product: lastSale.product ?? "--",
-                price: lastSale.price ?? 0,
-                channel: lastSale.channel ?? "--",
-                customer: lastSale.customer ?? "--",
-                payment_method: lastSale.payment_method ?? "--",
-                time: formatApiDateTime(lastSale.time),
-            },
-
-            most_sold: {
-                today: {
-                    name: mostSold.today?.name ?? "--",
-                    count: mostSold.today?.count ?? 0,
-                },
-                week: {
-                    name: mostSold.week?.name ?? "--",
-                    count: mostSold.week?.count ?? 0,
-                },
-                month: {
-                    name: mostSold.month?.name ?? "--",
-                    count: mostSold.month?.count ?? 0,
-                },
-            },
-
-            warnings: warnings.map((item) => ({
-                title: item.title ?? "--",
-                message: item.message ?? "--",
-                status: item.status ?? "--",
-                time: formatApiDateTime(item.time),
-            })),
-
-            notifications: notifications.map((item) => ({
-                title: item.title ?? "--",
-                message: item.message ?? "--",
-                status: item.status ?? "--",
-                time: formatApiDateTime(item.time),
-            })),
-
-            latest_activity: latestActivity.map((item) => ({
-                title: item.title ?? "--",
-                description: item.description ?? "--",
-                status: item.status ?? "--",
-                time: formatApiDateTime(item.time),
-            })),
-
-            sales_chart: apiData.sales_chart || {},
-        };
-    }
-
-    const getStatusClass = (status) => {
-        if (status === "success" || status === "online") return "status-on";
-        if (status === "warning") return "status-warn";
-        if (status === "info") return "status-info";
-        return "status-off";
+    const options = {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
     };
 
-    const formatPaymentMethod = (method) => {
-        if (method === "wallet") return "کیف پول";
-        if (method === "cash") return "نقدی";
-        if (method === "card") return "کارت";
-        return safe(method);
+    if (showTime) {
+        options.hour = "2-digit";
+        options.minute = "2-digit";
+    }
+
+    return new Intl.DateTimeFormat("fa-IR", options).format(date);
+}
+
+
+function mapDashboardData(apiData = {}) {
+    if (!apiData) return;
+
+    const today = apiData.today || {};
+    const speaker = apiData.speaker || {};
+    const lastSale = apiData.last_sale || {};
+    const mostSold = apiData.most_sold || {};
+    const wifi = apiData.device?.wifi || {};
+    const device = apiData.device?.info || {};
+
+    const latestActivity = Array.isArray(apiData.latest_activity)
+        ? apiData.latest_activity
+        : [];
+    const warnings = Array.isArray(apiData.warnings)
+        ? apiData.warnings
+        : [];
+    const notifications = Array.isArray(apiData.notifications)
+        ? apiData.notifications
+        : [];
+
+    return {
+        today_sales: today.sales ?? 0,
+        today_transactions: today.transactions ?? 0,
+        active_products: today.active_products ?? 0,
+        device_status: device.status,
+        device_model: device?.model,
+        device_uptime: device?.uptime ?? 0,
+
+        wifi: {
+            rssi: wifi.rssi ?? "",
+            ssid: wifi.ssid ?? "",
+            connected: wifi.connected ?? "",
+        },
+
+        board_version: "--",
+
+        last_operation: {
+            title: latestActivity[0]?.title ?? "--",
+            time: formatApiDateTime(latestActivity[0]?.time),
+            status: latestActivity[0]?.status ?? "--",
+        },
+
+        speaker: {
+            volume: speaker.volume ?? 75,
+            muted: speaker.muted ?? false,
+        },
+
+        last_sale: {
+            product: lastSale.product ?? "--",
+            price: lastSale.price ?? 0,
+            channel: lastSale.channel ?? "--",
+            customer: lastSale.customer ?? "--",
+            payment_method: lastSale.payment_method ?? "--",
+            time: formatApiDateTime(lastSale.time),
+        },
+
+        most_sold: {
+            today: {
+                name: mostSold.today?.name ?? "--",
+                count: mostSold.today?.count ?? 0,
+            },
+            week: {
+                name: mostSold.week?.name ?? "--",
+                count: mostSold.week?.count ?? 0,
+            },
+            month: {
+                name: mostSold.month?.name ?? "--",
+                count: mostSold.month?.count ?? 0,
+            },
+        },
+
+        warnings: warnings.map((item) => ({
+            title: item.title ?? "--",
+            message: item.message ?? "--",
+            status: item.status ?? "--",
+            time: formatApiDateTime(item.time),
+        })),
+
+        notifications: notifications.map((item) => ({
+            title: item.title ?? "--",
+            message: item.message ?? "--",
+            status: item.status ?? "--",
+            time: formatApiDateTime(item.time),
+        })),
+
+        latest_activity: latestActivity.map((item) => ({
+            title: item.title ?? "--",
+            description: item.description ?? "--",
+            status: item.status ?? "--",
+            time: formatApiDateTime(item.time),
+        })),
+
+        sales_chart: apiData.sales_chart || {},
+    };
+}
+
+const getStatusClass = (status) => {
+    if (status === "success" || status === "online") return "status-on";
+    if (status === "warning") return "status-warn";
+    if (status === "info") return "status-info";
+    return "status-off";
+};
+
+const formatPaymentMethod = (method) => {
+    if (method === "wallet") return "کیف پول";
+    if (method === "cash") return "نقدی";
+    if (method === "card") return "کارت";
+    return safe(method);
+};
+
+async function renderDashboard() {
+
+
+    if (DEVELOP_MODE) {
+        renderDashboardData = mock_data.dashboard;
+    } else {
+        showLoader(true);
+        renderDashboardData = await api("/api/dashboard") || {};
+        showLoader(false);
+    }
+
+
+    dashboardRawData = renderDashboardData;
+    const data = mapDashboardData(renderDashboardData);
+
+    const formatStatus = (status) => {
+        return safe(
+            status === "success"
+                ? "موفق"
+                : status === "online"
+                    ? "فعال"
+                    : status === "warning"
+                        ? "هشدار"
+                        : status === "info"
+                            ? "اطلاع"
+                            : status === "error"
+                                ? "خطا"
+                                : status,
+        );
     };
 
-    async function renderDashboard() {
+    const time = formatDateTime();
+    const wifi = data.wifi || {};
+    const lastOperation = data.last_operation || {};
+    const salesTrend = getSalesTrendData(salesTrendPeriod);
 
+    function getStatusMeta(status) {
 
-        if (DEVELOP_MODE) {
-            renderDashboardData = mock_data.dashboard;
-        } else {
-            showLoader(true);
-            renderDashboardData = await api("/api/dashboard") || {};
-            showLoader(false);
+        const raw = String(status ?? "").toLowerCase();
+
+        if (["success", "online", "active", "connected", "ok", "true"].includes(raw)) {
+            return {cls: "connected", label: "فعال"};
         }
 
-
-        dashboardRawData = renderDashboardData;
-        const data = mapDashboardData(renderDashboardData);
-
-        const formatStatus = (status) => {
-            return safe(
-                status === "success"
-                    ? "موفق"
-                    : status === "online"
-                        ? "فعال"
-                        : status === "warning"
-                            ? "هشدار"
-                            : status === "info"
-                                ? "اطلاع"
-                                : status === "error"
-                                    ? "خطا"
-                                    : status,
-            );
-        };
-
-        const time = formatDateTime();
-        const wifi = data.wifi || {};
-        const lastOperation = data.last_operation || {};
-        const salesTrend = getSalesTrendData(salesTrendPeriod);
-
-        function getStatusMeta(status) {
-
-            const raw = String(status ?? "").toLowerCase();
-
-            if (["success", "online", "active", "connected", "ok", "true"].includes(raw)) {
-                return {cls: "connected", label: "فعال"};
-            }
-
-            if (["warning", "info", "connecting", "pending", "unknown"].includes(raw)) {
-                return {cls: "warning", label: "هشدار"};
-            }
-
-            if (["error", "offline", "fail", "failed", "disconnected", "down", "false"].includes(raw)) {
-                return {cls: "disconnected", label: "قطع"};
-            }
-
-            return {cls: "warning", label: safe(status)};
+        if (["warning", "info", "connecting", "pending", "unknown"].includes(raw)) {
+            return {cls: "warning", label: "هشدار"};
         }
 
-        const deviceMeta = getStatusMeta(data?.device_status);
-        const wifiMeta = wifi.connected === true
-            ? {cls: "connected", label: "متصل"}
-            : wifi.connected === false
-                ? {cls: "disconnected", label: "قطع"}
-                : {cls: "warning", label: "نامشخص"};
+        if (["error", "offline", "fail", "failed", "disconnected", "down", "false"].includes(raw)) {
+            return {cls: "disconnected", label: "قطع"};
+        }
+
+        return {cls: "warning", label: safe(status)};
+    }
+
+    const deviceMeta = getStatusMeta(data?.device_status);
+    const wifiMeta = wifi.connected === true
+        ? {cls: "connected", label: "متصل"}
+        : wifi.connected === false
+            ? {cls: "disconnected", label: "قطع"}
+            : {cls: "warning", label: "نامشخص"};
 
 
-        app.innerHTML = `
+    app.innerHTML = `
                       <div class="dashboard-container">
 
                       <div class="dashboard-compact">
@@ -1317,12 +1317,12 @@
                               </div>
 
                             ${
-            !!salesTrend
-                ? ` <div class="compact-card sales-trend-card">
+        !!salesTrend
+            ? ` <div class="compact-card sales-trend-card">
                                                                     <div id="salesTrendChart"></div>
                                                                     </div>`
-                : ""
-        }
+            : ""
+    }
 
                                 <div class="compact-card">
                                     <div class="section-title">
@@ -1331,8 +1331,8 @@
                                     </div>
 
                                     ${
-            safe(data.last_sale.product) !== "--"
-                ? `
+        safe(data.last_sale.product) !== "--"
+            ? `
                                                                     <div class="info-list">
                                                                         <div><strong>محصول:</strong> <span>${safe(data.last_sale.product)}</span></div>
                                                                         <div><strong>قیمت:</strong> <span>${formatNumber(data.last_sale.price)} تومان</span></div>
@@ -1342,8 +1342,8 @@
                                                                         <div><strong>زمان:</strong> <span>${safe(data.last_sale.time)}</span></div>
                                                                     </div>
                                                                 `
-                : `<div class="empty-state">دیتایی وجود ندارد</div>`
-        }
+            : `<div class="empty-state">دیتایی وجود ندارد</div>`
+    }
                                 </div>
 
 
@@ -1354,14 +1354,14 @@
                                     </div>
 
                                     ${
-            safe(data.last_sale.product) !== "--"
-                ? ` <div class="info-list">
+        safe(data.last_sale.product) !== "--"
+            ? ` <div class="info-list">
                                         <div><strong>امروز:</strong> <span>${safe(data.most_sold.today.name)} - ${formatNumber(data.most_sold.today.count)}</span></div>
                                         <div><strong>این هفته:</strong> <span>${safe(data.most_sold.week.name)} - ${formatNumber(data.most_sold.week.count)}</span></div>
                                         <div><strong>این ماه:</strong> <span>${safe(data.most_sold.month.name)} - ${formatNumber(data.most_sold.month.count)}</span></div>
                                     </div>`
-                : `<div class="empty-state">دیتایی وجود ندارد</div>`
-        }
+            : `<div class="empty-state">دیتایی وجود ندارد</div>`
+    }
                                 </div>
 
 
@@ -1373,10 +1373,10 @@
 
                                     <div class="activity-list">
                                         ${
-            data.notifications.length
-                ? data.notifications
-                    .map(
-                        (item) => `
+        data.notifications.length
+            ? data.notifications
+                .map(
+                    (item) => `
                                                 <div class="activity-item">
                                                     <div>
                                                         <strong>${safe(item.title)}</strong>
@@ -1388,10 +1388,10 @@
                                                     </span>
                                                 </div>
                                             `,
-                    )
-                    .join("")
-                : `<div class="empty-state">دیتایی وجود ندارد</div>`
-        }
+                )
+                .join("")
+            : `<div class="empty-state">دیتایی وجود ندارد</div>`
+    }
                                     </div>
                                 </div>
 
@@ -1408,8 +1408,8 @@
                                   </div>
 
                                    ${
-            lastOperation.status !== "--"
-                ? `<div class="last-operation">
+        lastOperation.status !== "--"
+            ? `<div class="last-operation">
                                         <div>
                                             <strong>${safe(lastOperation.title)}</strong>
                                             <span>${safe(lastOperation.time)}</span>
@@ -1419,8 +1419,8 @@
                                                               ${formatStatus(lastOperation.status)}
                                                           </span>
                                     </div>`
-                : `<div class="empty-state">دیتایی وجود ندارد</div>`
-        }
+            : `<div class="empty-state">دیتایی وجود ندارد</div>`
+    }
                               </div>
 
 
@@ -1432,10 +1432,10 @@
 
                                 <div class="activity-list">
                                     ${
-            data.latest_activity.length
-                ? data.latest_activity
-                    .map(
-                        (item) => `
+        data.latest_activity.length
+            ? data.latest_activity
+                .map(
+                    (item) => `
                                             <div class="activity-item">
                                                 <div>
                                                     <strong>${safe(item.title)}</strong>
@@ -1447,10 +1447,10 @@
                                                 </span>
                                             </div>
                                         `,
-                    )
-                    .join("")
-                : `<div class="empty-state">دیتایی وجود ندارد</div>`
-        }
+                )
+                .join("")
+            : `<div class="empty-state">دیتایی وجود ندارد</div>`
+    }
                                 </div>
                             </div>
 
@@ -1463,10 +1463,10 @@
 
                                     <div class="activity-list">
                                         ${
-            data.warnings.length
-                ? data.warnings
-                    .map(
-                        (item) => `
+        data.warnings.length
+            ? data.warnings
+                .map(
+                    (item) => `
                                                 <div class="activity-item">
                                                     <div>
                                                         <strong>${safe(item.title)}</strong>
@@ -1478,10 +1478,10 @@
                                                     </span>
                                                 </div>
                                             `,
-                    )
-                    .join("")
-                : `<div class="empty-state">دیتایی وجود ندارد</div>`
-        }
+                )
+                .join("")
+            : `<div class="empty-state">دیتایی وجود ندارد</div>`
+    }
                                     </div>
                                 </div>
 
@@ -1490,99 +1490,99 @@
                       </div>
                   `;
 
-        renderSalesTrendChart(
-            document.getElementById("salesTrendChart"),
-            salesTrend,
-        );
+    renderSalesTrendChart(
+        document.getElementById("salesTrendChart"),
+        salesTrend,
+    );
 
-        startClock();
+    startClock();
+}
+
+
+function setVolume(val) {
+    document.getElementById("volumeValue").innerText = val + "%";
+
+    clearTimeout(volumeTimeout);
+
+    volumeTimeout = setTimeout(async () => {
+        await api("/api/device/volume", "POST", {volume: val});
+    }, 1000);
+}
+
+function formatDateTime() {
+    const now = new Date();
+
+    const gregorianDate = new Intl.DateTimeFormat("en-GB", {
+        weekday: "short",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(now);
+
+    const gregorianTime = new Intl.DateTimeFormat("en-GB", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+    }).format(now);
+
+    const jalaliDate = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+    }).format(now);
+
+    const jalaliTime = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+    }).format(now);
+
+    return {
+        gregorian: `${gregorianDate} | ${gregorianTime}`,
+        jalali: `${jalaliDate} | ${jalaliTime}`,
+    };
+}
+
+function startClock() {
+    function update() {
+        const time = formatDateTime();
+
+        const g = document.querySelector(".time-greg");
+        const j = document.querySelector(".time-jalali");
+
+        if (g) g.textContent = time.gregorian;
+        if (j) j.textContent = time.jalali;
     }
 
+    update();
+    setInterval(update, 3000);
+}
 
-    function setVolume(val) {
-        document.getElementById("volumeValue").innerText = val + "%";
+function downloadReport(data) {
+    // const blob = new Blob(
+    //     [JSON.stringify(data, null, 2)],
+    //     {type: "application/json"}
+    // );
+    //
+    // const url = URL.createObjectURL(blob);
+    //
+    // const a = document.createElement("a");
+    // a.href = url;
+    // a.download = "device-report.json";
+    // a.click();
+    //
+    // URL.revokeObjectURL(url);
 
-        clearTimeout(volumeTimeout);
+    showToast("warning", "توجه", "این بخش در حال توسعه میباشد 👽");
+}
 
-        volumeTimeout = setTimeout(async () => {
-            await api("/api/device/volume", "POST", {volume: val});
-        }, 1000);
-    }
-
-    function formatDateTime() {
-        const now = new Date();
-
-        const gregorianDate = new Intl.DateTimeFormat("en-GB", {
-            weekday: "short",
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-        }).format(now);
-
-        const gregorianTime = new Intl.DateTimeFormat("en-GB", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: false,
-        }).format(now);
-
-        const jalaliDate = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-        }).format(now);
-
-        const jalaliTime = new Intl.DateTimeFormat("fa-IR-u-ca-persian", {
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hour12: false,
-        }).format(now);
-
-        return {
-            gregorian: `${gregorianDate} | ${gregorianTime}`,
-            jalali: `${jalaliDate} | ${jalaliTime}`,
-        };
-    }
-
-    function startClock() {
-        function update() {
-            const time = formatDateTime();
-
-            const g = document.querySelector(".time-greg");
-            const j = document.querySelector(".time-jalali");
-
-            if (g) g.textContent = time.gregorian;
-            if (j) j.textContent = time.jalali;
-        }
-
-        update();
-        setInterval(update, 3000);
-    }
-
-    function downloadReport(data) {
-        // const blob = new Blob(
-        //     [JSON.stringify(data, null, 2)],
-        //     {type: "application/json"}
-        // );
-        //
-        // const url = URL.createObjectURL(blob);
-        //
-        // const a = document.createElement("a");
-        // a.href = url;
-        // a.download = "device-report.json";
-        // a.click();
-        //
-        // URL.revokeObjectURL(url);
-
-        showToast("warning", "توجه", "این بخش در حال توسعه میباشد 👽");
-    }
-
-    function renderNotifications() {
+function renderNotifications() {
 
 
-        app.innerHTML = `
+    app.innerHTML = `
                       <div class="card">
                          <div class="notifications-header">
                            <div style="display: flex; align-items: center; justify-content: start; gap: 10px">
@@ -1623,30 +1623,30 @@
                           </div>
                       </div>
                   `;
+}
+
+function markNotificationsRead() {
+    // call api
+    showToast(
+        "success",
+        "",
+        "وضعیت همه پیام ها به خوانده شد تغییر کرد",
+        3000,
+    );
+}
+
+
+async function renderClients() {
+
+    if (DEVELOP_MODE) {
+        renderClientsData = mock_data.clients
+    } else {
+        showLoader(true);
+        renderClientsData = await api("/api/clients");
+        showLoader(false);
     }
 
-    function markNotificationsRead() {
-        // call api
-        showToast(
-            "success",
-            "",
-            "وضعیت همه پیام ها به خوانده شد تغییر کرد",
-            3000,
-        );
-    }
-
-
-    async function renderClients() {
-
-        if (DEVELOP_MODE) {
-            renderClientsData = mock_data.clients
-        } else {
-            showLoader(true);
-            renderClientsData = await api("/api/clients");
-            showLoader(false);
-        }
-
-        app.innerHTML = `
+    app.innerHTML = `
                   <div class="card" style="padding-bottom: 80px">
 
                       <div style="display: flex; align-items: center; justify-content: start; gap: 10px">
@@ -1677,23 +1677,23 @@
                   </div>
                   `;
 
-        const table = document.getElementById("clientsTable");
-        let index = 0;
+    const table = document.getElementById("clientsTable");
+    let index = 0;
 
-        for (let key in renderClientsData) {
-            const row = renderClientsData[key];
-            const isRowDisabled = !!row.disabledByServer;
-            const hasError = !!row.error;
-            const isActive = row.status === "فعال";
+    for (let key in renderClientsData) {
+        const row = renderClientsData[key];
+        const isRowDisabled = !!row.disabledByServer;
+        const hasError = !!row.error;
+        const isActive = row.status === "فعال";
 
-            const tr = document.createElement("tr");
+        const tr = document.createElement("tr");
 
-            if (!isActive) tr.classList.add("row-inactive");
-            if (hasError) tr.classList.add("row-error");
+        if (!isActive) tr.classList.add("row-inactive");
+        if (hasError) tr.classList.add("row-error");
 
-            index++;
+        index++;
 
-            tr.innerHTML = `
+        tr.innerHTML = `
                               <td class="col-index">
                                   <span class="channel-badge ${hasError ? "channel-badge-error" : ""}">
                                       ${index}
@@ -1733,21 +1733,21 @@
                               </td>
                           `;
 
-            table?.appendChild(tr);
-        }
+        table?.appendChild(tr);
     }
+}
 
-    function openClientsAdvancedSettings(key) {
-        const rowData = renderClientsData[key];
-        if (!rowData) return;
+function openClientsAdvancedSettings(key) {
+    const rowData = renderClientsData[key];
+    if (!rowData) return;
 
-        const rowName = rowData.name || "";
-        const rowId = rowData.id || "";
-        const rowVisible = rowData.status === "فعال";
-        let rowError = rowData.error || "";
-        const rowDisabledByServer = rowData.disabledByServer || "";
+    const rowName = rowData.name || "";
+    const rowId = rowData.id || "";
+    const rowVisible = rowData.status === "فعال";
+    let rowError = rowData.error || "";
+    const rowDisabledByServer = rowData.disabledByServer || "";
 
-        const modalBody = `
+    const modalBody = `
                   <div class="adv-modal">
                       <div class="modal-product-icon">
                       ${getIcon("users")}
@@ -1804,76 +1804,76 @@
                   </div>
               `;
 
-        showModal({
-            message: modalBody,
-            type: "noType",
-            onConfirm: async (modal) => {
-                const finalData = {
-                    id: document.getElementById("modalId").value.trim(),
-                    name: document.getElementById("modalName").value.trim(),
-                    status: document.getElementById("modalVisible").checked ? "فعال" : "غیر فعال",
-                };
+    showModal({
+        message: modalBody,
+        type: "noType",
+        onConfirm: async (modal) => {
+            const finalData = {
+                id: document.getElementById("modalId").value.trim(),
+                name: document.getElementById("modalName").value.trim(),
+                status: document.getElementById("modalVisible").checked ? "فعال" : "غیر فعال",
+            };
 
-                renderClientsData[key] = {
-                    ...renderClientsData[key],
-                    ...finalData,
-                };
+            renderClientsData[key] = {
+                ...renderClientsData[key],
+                ...finalData,
+            };
 
-                try {
-                    // await api(`/api/clients/${key}`, {
-                    //     method: "PUT",
-                    //     body: finalData,
-                    // });
-                    await renderClients();
-                    modal.remove();
-                    return;
-                } catch (err) {
-                    showToast(
-                        "error",
-                        "خطا",
-                        "ذخیره تغییرات با خطا مواجه شد ❌",
-                    );
-                }
-
+            try {
+                // await api(`/api/clients/${key}`, {
+                //     method: "PUT",
+                //     body: finalData,
+                // });
                 await renderClients();
                 modal.remove();
-            },
-        });
-    }
+                return;
+            } catch (err) {
+                showToast(
+                    "error",
+                    "خطا",
+                    "ذخیره تغییرات با خطا مواجه شد ❌",
+                );
+            }
 
-    async function deleteClient(key) {
-        const rowData = renderClientsData[key];
-        if (!rowData) return;
+            await renderClients();
+            modal.remove();
+        },
+    });
+}
 
-        showModal({
-            message: `آیا از حذف کاربر «${rowData.name || rowData.id || ""}» مطمئن هستید؟`,
-            type: "danger",
-            onConfirm: async (modal) => {
-                try {
-                    // await api(`/api/clients/${key}`, { method: "DELETE" });
+async function deleteClient(key) {
+    const rowData = renderClientsData[key];
+    if (!rowData) return;
 
-                    delete renderClientsData[key];
-                    await renderClients();
-                    modal.remove();
-                    showToast(
-                        "success",
-                        "حذف",
-                        "حذف کاربر با موفقیت انجام شد ✅",
-                    );
-                    location.reload()
-                } catch (err) {
-                    showToast(
-                        "error",
-                        "خطا",
-                        "حذف کاربر با خطا مواجه شد ❌",
-                    );
-                }
-            },
-        });
-    }
+    showModal({
+        message: `آیا از حذف کاربر «${rowData.name || rowData.id || ""}» مطمئن هستید؟`,
+        type: "danger",
+        onConfirm: async (modal) => {
+            try {
+                // await api(`/api/clients/${key}`, { method: "DELETE" });
 
-    async function addNewClient() {
-        const modalBody = `
+                delete renderClientsData[key];
+                await renderClients();
+                modal.remove();
+                showToast(
+                    "success",
+                    "حذف",
+                    "حذف کاربر با موفقیت انجام شد ✅",
+                );
+                location.reload()
+            } catch (err) {
+                showToast(
+                    "error",
+                    "خطا",
+                    "حذف کاربر با خطا مواجه شد ❌",
+                );
+            }
+        },
+    });
+}
+
+async function addNewClient() {
+    const modalBody = `
                   <div class="adv-modal">
                       <div class="modal-product-icon">
                       ${getIcon("users")}
@@ -1905,63 +1905,63 @@
                   </div>
               `;
 
-        showModal({
-            message: modalBody,
-            type: "noType",
-            onConfirm: async (modal) => {
-                const name = document.getElementById("modalName").value.trim();
-                const id = document.getElementById("modalId").value.trim();
-                const status = document.getElementById("modalVisible").checked ? "فعال" : "غیر فعال";
+    showModal({
+        message: modalBody,
+        type: "noType",
+        onConfirm: async (modal) => {
+            const name = document.getElementById("modalName").value.trim();
+            const id = document.getElementById("modalId").value.trim();
+            const status = document.getElementById("modalVisible").checked ? "فعال" : "غیر فعال";
 
-                if (!name || !id) {
-                    showToast(
-                        "error",
-                        "خطا",
-                        "نام و ایدی نمی‌توانند خالی باشند ❌",
-                    );
-                    return;
-                }
+            if (!name || !id) {
+                showToast(
+                    "error",
+                    "خطا",
+                    "نام و ایدی نمی‌توانند خالی باشند ❌",
+                );
+                return;
+            }
 
-                const finalData = {name, id, status};
+            const finalData = {name, id, status};
 
-                try {
-                    // const newClient = await api("/api/clients", {
-                    //     method: "POST",
-                    //     body: finalData,
-                    // });
+            try {
+                // const newClient = await api("/api/clients", {
+                //     method: "POST",
+                //     body: finalData,
+                // });
 
-                    const newKey = id; // بعد از وصل شدن api، احتمالاً باید از newClient.key یا مشابه استفاده کنید
-                    renderClientsData[newKey] = finalData;
+                const newKey = id; // بعد از وصل شدن api، احتمالاً باید از newClient.key یا مشابه استفاده کنید
+                renderClientsData[newKey] = finalData;
 
-                    await renderClients();
-                    modal.remove();
-                } catch (err) {
-                    showToast(
-                        "error",
-                        "خطا",
-                        "افزودن کاربر با خطا مواجه شد ❌",
-                    );
-                }
-            },
-        });
+                await renderClients();
+                modal.remove();
+            } catch (err) {
+                showToast(
+                    "error",
+                    "خطا",
+                    "افزودن کاربر با خطا مواجه شد ❌",
+                );
+            }
+        },
+    });
+}
+
+async function renderBalance() {
+
+    if (DEVELOP_MODE) {
+        renderBalanceData = mock_data.balance
+    } else {
+        showLoader(true);
+        renderBalanceData = await api("/api/balance");
+        showLoader(false);
     }
 
-    async function renderBalance() {
+    const clients = renderBalanceData;
 
-        if (DEVELOP_MODE) {
-            renderBalanceData = mock_data.balance
-        } else {
-            showLoader(true);
-            renderBalanceData = await api("/api/balance");
-            showLoader(false);
-        }
+    let rows = "";
 
-        const clients = renderBalanceData;
-
-        let rows = "";
-
-        clients.forEach((c, i) => {
-            rows += `
+    clients.forEach((c, i) => {
+        rows += `
                       <tr>
                           <td>${i + 1}</td>
                           <td>${c.name}</td>
@@ -1978,9 +1978,9 @@
 
                       </tr>
                       `;
-        });
+    });
 
-        app.innerHTML = `
+    app.innerHTML = `
                               <div class="card">
 
                               <div style="display: flex; align-items: center; justify-content: start; gap: 10px">
@@ -2022,111 +2022,111 @@
                               </div>
                   `;
 
+}
+
+function applyBalanceToAll(count) {
+    const value = document.getElementById("globalBalanceInput").value;
+
+    if (value === "") {
+        showToast("warning", "توجه", "اول مقدار وارد کن!");
+        return;
     }
 
-    function applyBalanceToAll(count) {
-        const value = document.getElementById("globalBalanceInput").value;
+    for (let i = 0; i < count; i++) {
+        const input = document.getElementById("balance" + i);
 
-        if (value === "") {
-            showToast("warning", "توجه", "اول مقدار وارد کن!");
-            return;
-        }
+        if (input) input.value = value;
+    }
+}
 
-        for (let i = 0; i < count; i++) {
-            const input = document.getElementById("balance" + i);
+async function submitAllBalances(count) {
+    const updates = [];
 
-            if (input) input.value = value;
+    for (let i = 0; i < count; i++) {
+        const input = document.getElementById("balance" + i);
+        const idCell = document.getElementById("clientId" + i);
+
+        if (input && idCell) {
+            updates.push({
+                id: idCell.innerText.trim(),
+                newBalance: Number(input.value),
+            });
         }
     }
 
-    async function submitAllBalances(count) {
-        const updates = [];
+    showLoader(true);
 
-        for (let i = 0; i < count; i++) {
-            const input = document.getElementById("balance" + i);
-            const idCell = document.getElementById("clientId" + i);
+    const res = await api("/api/balance", "POST", updates);
 
-            if (input && idCell) {
-                updates.push({
-                    id: idCell.innerText.trim(),
-                    newBalance: Number(input.value),
-                });
-            }
-        }
+    showLoader(false);
 
+    if (res?.success) {
+        showToast("success", "موفق", "اطلاعات با موفقیت ذخیره شد", 7000);
+
+        await renderBalance();
+    } else {
+        showToast("error", "خطا", "خطا در برقراری ارتباط با سرور", 4000);
+    }
+}
+
+function confirmSave(count) {
+    showModal({
+        message: "آیا مطمئن هستید که می‌خواهید تغییرات موجودی ذخیره شود؟",
+        type: "warning",
+        onConfirm: async (modal) => {
+            await submitAllBalances(count);
+            modal.remove();
+        },
+    });
+}
+
+
+async function downloadBalanceCSV() {
+
+    // Call Api ...
+
+    showToast("info", "درحال توسعه", "این بخش در حال توسعه میباشد ...")
+
+    // if (!resp.ok) {
+    //     showToast("error", "خطا", "خطا در دانلود CSV");
+    //     return;
+    // }
+
+    // const blob = await resp.blob();
+
+    // const url = window.URL.createObjectURL(blob);
+
+    // const a = document.createElement("a");
+    //
+    // a.href = url;
+    // a.download = "clients_balance.csv";
+    //
+    // document.body.appendChild(a);
+    //
+    // a.click();
+    //
+    // a.remove();
+    //
+    // window.URL.revokeObjectURL(url);
+}
+
+async function renderSettings() {
+
+    if (DEVELOP_MODE) {
+        renderSettingsData = mock_data.settings
+    } else {
         showLoader(true);
-
-        const res = await api("/api/balance", "POST", updates);
-
+        renderSettingsData = (await api("/api/settings")) || {};
         showLoader(false);
-
-        if (res?.success) {
-            showToast("success", "موفق", "اطلاعات با موفقیت ذخیره شد", 7000);
-
-            await renderBalance();
-        } else {
-            showToast("error", "خطا", "خطا در برقراری ارتباط با سرور", 4000);
-        }
-    }
-
-    function confirmSave(count) {
-        showModal({
-            message: "آیا مطمئن هستید که می‌خواهید تغییرات موجودی ذخیره شود؟",
-            type: "warning",
-            onConfirm: async (modal) => {
-                await submitAllBalances(count);
-                modal.remove();
-            },
-        });
     }
 
 
-    async function downloadBalanceCSV() {
+    const now = new Date();
 
-        // Call Api ...
+    const defaultDate = now.toISOString().split("T")[0];
+    const defaultTime = now.toTimeString().slice(0, 5);
 
-        showToast("info", "درحال توسعه", "این بخش در حال توسعه میباشد ...")
-
-        // if (!resp.ok) {
-        //     showToast("error", "خطا", "خطا در دانلود CSV");
-        //     return;
-        // }
-
-        // const blob = await resp.blob();
-
-        // const url = window.URL.createObjectURL(blob);
-
-        // const a = document.createElement("a");
-        //
-        // a.href = url;
-        // a.download = "clients_balance.csv";
-        //
-        // document.body.appendChild(a);
-        //
-        // a.click();
-        //
-        // a.remove();
-        //
-        // window.URL.revokeObjectURL(url);
-    }
-
-    async function renderSettings() {
-
-        if (DEVELOP_MODE) {
-            renderSettingsData = mock_data.settings
-        } else {
-            showLoader(true);
-            renderSettingsData = (await api("/api/settings")) || {};
-            showLoader(false);
-        }
-
-
-        const now = new Date();
-
-        const defaultDate = now.toISOString().split("T")[0];
-        const defaultTime = now.toTimeString().slice(0, 5);
-
-        app.innerHTML = `
+    app.innerHTML = `
                       <div class="card" style="padding-bottom: 60px">
                           <div>
                               <div style="display: flex; align-items: center; justify-content: start; gap: 10px;">
@@ -2338,110 +2338,110 @@
 
                   `;
 
-        saveInitialFormState();
+    saveInitialFormState();
 
-        await loadWifiList();
-    }
+    await loadWifiList();
+}
 
-    function saveInitialFormState() {
-        const form = document.getElementById("settingsForm");
-        if (form) {
-            const formData = new FormData(form);
-            initialFormState = JSON.stringify(
-                Object.fromEntries(formData.entries()),
-            );
-        }
-    }
-
-    function hasFormChanged() {
-        const form = document.getElementById("settingsForm");
-        if (!form || !initialFormState) return false;
-
+function saveInitialFormState() {
+    const form = document.getElementById("settingsForm");
+    if (form) {
         const formData = new FormData(form);
-        const currentState = JSON.stringify(
+        initialFormState = JSON.stringify(
             Object.fromEntries(formData.entries()),
         );
-
-        return initialFormState !== currentState;
     }
+}
 
-    async function submitSettingsAPI(form) {
-        showLoader(true);
-        const formData = new FormData(form);
-        const payload = Object.fromEntries(formData.entries());
+function hasFormChanged() {
+    const form = document.getElementById("settingsForm");
+    if (!form || !initialFormState) return false;
 
-        // const res = await api("/api/save-settings", "POST", payload);
-        const res = {success: true};
+    const formData = new FormData(form);
+    const currentState = JSON.stringify(
+        Object.fromEntries(formData.entries()),
+    );
 
-        showLoader(false);
+    return initialFormState !== currentState;
+}
 
-        if (res && res.success) {
-            showToast("success", "موفق", "✅ تنظیمات با موفقیت ذخیره شد.");
-            saveInitialFormState();
-            return true;
-        } else {
-            showToast("error", "خطا", "❌ خطا در ذخیره‌سازی!");
-            return false;
-        }
+async function submitSettingsAPI(form) {
+    showLoader(true);
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+
+    // const res = await api("/api/save-settings", "POST", payload);
+    const res = {success: true};
+
+    showLoader(false);
+
+    if (res && res.success) {
+        showToast("success", "موفق", "✅ تنظیمات با موفقیت ذخیره شد.");
+        saveInitialFormState();
+        return true;
+    } else {
+        showToast("error", "خطا", "❌ خطا در ذخیره‌سازی!");
+        return false;
     }
+}
 
-    async function saveSettings(e) {
-        e.preventDefault();
-        const form = e.target;
+async function saveSettings(e) {
+    e.preventDefault();
+    const form = e.target;
 
-        showModal({
-            message: `
+    showModal({
+        message: `
                           <div style="line-height: 1.9; text-align: right;">
                               <p>آیا این تغییرات انجام شده را تایید می‌کنید؟</p>
                           </div>
                       `,
-            type: "danger",
-            onConfirm: async (modal) => {
-                modal.remove();
-                await submitSettingsAPI(form);
-            },
-            onCancel: () => {
-            },
-        });
-    }
+        type: "danger",
+        onConfirm: async (modal) => {
+            modal.remove();
+            await submitSettingsAPI(form);
+        },
+        onCancel: () => {
+        },
+    });
+}
 
-    function handleNavigation(targetPath) {
-        const form = document.getElementById("settingsForm");
+function handleNavigation(targetPath) {
+    const form = document.getElementById("settingsForm");
 
-        if (hasFormChanged()) {
-            showModal({
-                message: `
+    if (hasFormChanged()) {
+        showModal({
+            message: `
                               <div style="line-height: 1.9; text-align: right;">
                                   <p>تغییراتی در تنظیمات اعمال کرده‌اید. آیا مایلید قبل از خروج آن‌ها را ذخیره کنید؟</p>
                               </div>
                           `,
-                type: "warning",
-                onConfirm: async (modal) => {
-                    modal.remove();
-                    const success = await submitSettingsAPI(form);
-                    if (success) {
-                        location.hash = targetPath;
-                    }
-                },
-                onCancel: (modal) => {
-                    modal.remove();
+            type: "warning",
+            onConfirm: async (modal) => {
+                modal.remove();
+                const success = await submitSettingsAPI(form);
+                if (success) {
                     location.hash = targetPath;
-                },
-            });
-        } else {
-            location.hash = targetPath;
-        }
+                }
+            },
+            onCancel: (modal) => {
+                modal.remove();
+                location.hash = targetPath;
+            },
+        });
+    } else {
+        location.hash = targetPath;
     }
+}
 
-    function getSignalBars(rssi) {
-        let level = 0;
+function getSignalBars(rssi) {
+    let level = 0;
 
-        if (rssi > -50) level = 4;
-        else if (rssi > -60) level = 3;
-        else if (rssi > -70) level = 2;
-        else level = 1;
+    if (rssi > -50) level = 4;
+    else if (rssi > -60) level = 3;
+    else if (rssi > -70) level = 2;
+    else level = 1;
 
-        return `
+    return `
                   <div class="wifi-bars level-${level}">
                       <span></span>
                       <span></span>
@@ -2449,13 +2449,13 @@
                       <span></span>
                   </div>
                   `;
-    }
+}
 
-    function addWifi() {
-        showModal({
-            message: `نام و رمز وای فای Hidden را وارد کنید `,
+function addWifi() {
+    showModal({
+        message: `نام و رمز وای فای Hidden را وارد کنید `,
 
-            extraHtml: `
+        extraHtml: `
                                   <div class="form-group" style="margin-top:15px">
 
                                         <input
@@ -2491,88 +2491,88 @@
                                   </div>
                                   `,
 
-            onConfirm: async (modal) => {
-                const ssid = modal.querySelector("#hiddenWifiSsidModal");
-                const passInput = modal.querySelector("#hiddenWifiPasswordModal");
-                const password = passInput.value;
+        onConfirm: async (modal) => {
+            const ssid = modal.querySelector("#hiddenWifiSsidModal");
+            const passInput = modal.querySelector("#hiddenWifiPasswordModal");
+            const password = passInput.value;
 
-                if (!password)
-                    return showToast("warning", "", "قبل از تایید رمز را وارد کنید ");
+            if (!password)
+                return showToast("warning", "", "قبل از تایید رمز را وارد کنید ");
 
-                try {
-                    // const res = await fetch("/api/wifi/connect", {
-                    //     method: "POST",
-                    //     headers: {"Content-Type": "application/json"},
-                    //     body: JSON.stringify({
-                    //         ssid,
-                    //         password
-                    //     })
-                    // });
+            try {
+                // const res = await fetch("/api/wifi/connect", {
+                //     method: "POST",
+                //     headers: {"Content-Type": "application/json"},
+                //     body: JSON.stringify({
+                //         ssid,
+                //         password
+                //     })
+                // });
 
-                    // const result = await res.json();
-                    const result = {
-                        success: false, // for test
-                    };
+                // const result = await res.json();
+                const result = {
+                    success: false, // for test
+                };
 
-                    if (result.success) {
-                        await loadWifiList();
+                if (result.success) {
+                    await loadWifiList();
 
-                        modal.remove();
+                    modal.remove();
 
-                        showToast("success", "", "اتصال به شبکه با موفقیت انجام شد");
-                    } else {
-                        showToast("error", "خطا", "اتصال به شبکه ناموفق بود");
-                    }
-                } catch (err) {
-                    showToast("error", "خطا", "خطا در اتصال به شبکه");
+                    showToast("success", "", "اتصال به شبکه با موفقیت انجام شد");
+                } else {
+                    showToast("error", "خطا", "اتصال به شبکه ناموفق بود");
                 }
-            },
-        });
-    }
+            } catch (err) {
+                showToast("error", "خطا", "خطا در اتصال به شبکه");
+            }
+        },
+    });
+}
 
-    async function loadWifiList() {
-        const container = document.getElementById("wifiList");
-        if (!container) return;
+async function loadWifiList() {
+    const container = document.getElementById("wifiList");
+    if (!container) return;
 
-        container.innerHTML = `
+    container.innerHTML = `
                       <div class="wifi-loading">
                           در حال اسکن شبکه‌ها...
                       </div>
                   `;
 
-        try {
-            // const res = await fetch("/api/wifi/scan");
-            // const networks = await res.json();
-            const networks = [
-                {
-                    ssid: "RobotMarket_5G",
-                    rssi: -45,
-                    secure: true,
-                    connected: true,
-                },
-                {ssid: "RobotMarket", rssi: -70, secure: false, connected: false},
-                {
-                    ssid: "RobotMarket-3",
-                    rssi: -60,
-                    secure: false,
-                    connected: false,
-                },
-                {
-                    ssid: "RobotMarket-2",
-                    rssi: -50,
-                    secure: false,
-                    connected: false,
-                },
-            ];
+    try {
+        // const res = await fetch("/api/wifi/scan");
+        // const networks = await res.json();
+        const networks = [
+            {
+                ssid: "RobotMarket_5G",
+                rssi: -45,
+                secure: true,
+                connected: true,
+            },
+            {ssid: "RobotMarket", rssi: -70, secure: false, connected: false},
+            {
+                ssid: "RobotMarket-3",
+                rssi: -60,
+                secure: false,
+                connected: false,
+            },
+            {
+                ssid: "RobotMarket-2",
+                rssi: -50,
+                secure: false,
+                connected: false,
+            },
+        ];
 
-            networks.sort((a, b) => b.rssi - a.rssi);
+        networks.sort((a, b) => b.rssi - a.rssi);
 
-            container.innerHTML = networks
-                .map((net) => {
-                    const secureIcon = net.secure ? "🔒" : "";
-                    const connected = net.connected ? "wifi-connected" : "";
+        container.innerHTML = networks
+            .map((net) => {
+                const secureIcon = net.secure ? "🔒" : "";
+                const connected = net.connected ? "wifi-connected" : "";
 
-                    return `
+                return `
                                       <div class="wifi-item ${connected}"
                                            data-ssid="${net.ssid}"
                                            onclick="selectWifi('${net.ssid}')">
@@ -2595,22 +2595,22 @@
 
                                       </div>
                                     `;
-                })
-                .join("");
-        } catch (err) {
-            container.innerHTML = `
+            })
+            .join("");
+    } catch (err) {
+        container.innerHTML = `
                           <div class="wifi-error">
                               خطا در اسکن شبکه
                           </div>
                       `;
-        }
     }
+}
 
-    function selectWifi(ssid) {
-        showModal({
-            message: `رمز شبکه <b>${ssid}</b> را وارد کنید`,
+function selectWifi(ssid) {
+    showModal({
+        message: `رمز شبکه <b>${ssid}</b> را وارد کنید`,
 
-            extraHtml: `
+        extraHtml: `
                                   <div class="form-group" style="margin-top:15px">
 
                                       <div style="display:flex;gap:6px">
@@ -2637,124 +2637,124 @@
                                   </div>
                                   `,
 
-            onConfirm: async (modal) => {
-                const passInput = modal.querySelector("#wifiPasswordModal");
-                const password = passInput.value;
+        onConfirm: async (modal) => {
+            const passInput = modal.querySelector("#wifiPasswordModal");
+            const password = passInput.value;
 
-                if (!password)
-                    return showToast("warning", "", "قبل از تایید رمز را وارد کنید ");
+            if (!password)
+                return showToast("warning", "", "قبل از تایید رمز را وارد کنید ");
 
-                try {
-                    // const res = await fetch("/api/wifi/connect", {
-                    //     method: "POST",
-                    //     headers: {"Content-Type": "application/json"},
-                    //     body: JSON.stringify({
-                    //         ssid,
-                    //         password
-                    //     })
-                    // });
+            try {
+                // const res = await fetch("/api/wifi/connect", {
+                //     method: "POST",
+                //     headers: {"Content-Type": "application/json"},
+                //     body: JSON.stringify({
+                //         ssid,
+                //         password
+                //     })
+                // });
 
-                    // const result = await res.json();
-                    const result = {
-                        success: true, // for test
-                    };
+                // const result = await res.json();
+                const result = {
+                    success: true, // for test
+                };
 
-                    if (result.success) {
-                        applySelectedWifi(ssid, password);
+                if (result.success) {
+                    applySelectedWifi(ssid, password);
 
-                        modal.remove();
+                    modal.remove();
 
-                        showToast("success", "", "اتصال به شبکه با موفقیت انجام شد");
-                    } else {
-                        showToast("error", "خطا", "اتصال به شبکه ناموفق بود");
-                    }
-                } catch (err) {
-                    showToast("error", "خطا", "خطا در اتصال به شبکه");
+                    showToast("success", "", "اتصال به شبکه با موفقیت انجام شد");
+                } else {
+                    showToast("error", "خطا", "اتصال به شبکه ناموفق بود");
                 }
-            },
-        });
-    }
-
-    function applySelectedWifi(ssid, password) {
-        document.getElementById("wifiSSID").value = ssid;
-
-        document.querySelector("input[name='wifiPassword']").value = password;
-
-        document
-            .querySelectorAll(".wifi-item")
-            .forEach((el) => el.classList.remove("selected"));
-
-        const el = [...document.querySelectorAll(".wifi-item")].find(
-            (x) => x.dataset?.ssid === ssid,
-        );
-
-        if (el) el.classList.add("selected");
-    }
-
-    function toggleInputVisibility(inputId, visibleType = "text") {
-        const input = document.getElementById(inputId);
-        if (!input) return;
-
-        if (!input.dataset.originalType) {
-            input.dataset.originalType = input.type;
-        }
-
-        input.type =
-            input.type === input.dataset.originalType
-                ? visibleType
-                : input.dataset.originalType;
-    }
-
-    // ==========================================
-    //      (SSE / Webhook Forwarder)
-    // ==========================================
-    function setupRealtimeUpdates() {
-        if (DEVELOP_MODE) return;
-
-        const eventSource = new EventSource("/api/realtime-updates");
-
-        eventSource.onmessage = function (event) {
-            const payload = JSON.parse(event.data);
-            const targetKey = payload.key;
-            const newQty = payload.quantity;
-
-            if (renderPricesData[targetKey]) {
-                renderPricesData[targetKey].quantity = newQty;
-
-                showToast(
-                    "info",
-                    "اعلان",
-                    `[Webhook] تعداد کالا ${targetKey} به ${newQty} تغییر یافت. رندر مجدد...`,
-                    4000,
-                );
-
-                renderPrices();
+            } catch (err) {
+                showToast("error", "خطا", "خطا در اتصال به شبکه");
             }
-        };
+        },
+    });
+}
 
-        eventSource.onerror = function (err) {
-            console.error("خطا در اتصال به کانال زنده سرور:", err);
-            eventSource.close();
-            setTimeout(setupRealtimeUpdates, 20000);
-        };
+function applySelectedWifi(ssid, password) {
+    document.getElementById("wifiSSID").value = ssid;
+
+    document.querySelector("input[name='wifiPassword']").value = password;
+
+    document
+        .querySelectorAll(".wifi-item")
+        .forEach((el) => el.classList.remove("selected"));
+
+    const el = [...document.querySelectorAll(".wifi-item")].find(
+        (x) => x.dataset?.ssid === ssid,
+    );
+
+    if (el) el.classList.add("selected");
+}
+
+function toggleInputVisibility(inputId, visibleType = "text") {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    if (!input.dataset.originalType) {
+        input.dataset.originalType = input.type;
     }
 
+    input.type =
+        input.type === input.dataset.originalType
+            ? visibleType
+            : input.dataset.originalType;
+}
 
-    async function renderPrices() {
+// ==========================================
+//      (SSE / Webhook Forwarder)
+// ==========================================
+function setupRealtimeUpdates() {
+    if (DEVELOP_MODE) return;
 
-        // setupRealtimeUpdates();
+    const eventSource = new EventSource("/api/realtime-updates");
 
-        if (DEVELOP_MODE) {
-            renderPricesData = mock_data.prices;
-        } else {
-            // if (Object.keys(renderPricesData).length === 0) {
-            showLoader(true);
-            renderPricesData = (await api("/api/prices")) || {};
-            showLoader(false);
-            // }
+    eventSource.onmessage = function (event) {
+        const payload = JSON.parse(event.data);
+        const targetKey = payload.key;
+        const newQty = payload.quantity;
+
+        if (renderPricesData[targetKey]) {
+            renderPricesData[targetKey].quantity = newQty;
+
+            showToast(
+                "info",
+                "اعلان",
+                `[Webhook] تعداد کالا ${targetKey} به ${newQty} تغییر یافت. رندر مجدد...`,
+                4000,
+            );
+
+            renderPrices();
         }
+    };
 
-        app.innerHTML = `
+    eventSource.onerror = function (err) {
+        console.error("خطا در اتصال به کانال زنده سرور:", err);
+        eventSource.close();
+        setTimeout(setupRealtimeUpdates, 20000);
+    };
+}
+
+
+async function renderPrices() {
+
+    // setupRealtimeUpdates();
+
+    if (DEVELOP_MODE) {
+        renderPricesData = mock_data.prices;
+    } else {
+        // if (Object.keys(renderPricesData).length === 0) {
+        showLoader(true);
+        renderPricesData = (await api("/api/prices")) || {};
+        showLoader(false);
+        // }
+    }
+
+    app.innerHTML = `
                           <div class="card" style="padding-bottom: 80px">
 
                               <div style="display: flex; align-items: center; justify-content: start; gap: 10px">
@@ -2785,22 +2785,22 @@
                           </div>
                           `;
 
-        const table = document.getElementById("priceTable");
+    const table = document.getElementById("priceTable");
 
-        for (let key in renderPricesData) {
-            const row = renderPricesData[key];
-            const isRowDisabled = !!row.disabledByServer;
-            const hasError = !!row.error;
-            const isHiddenInStore = row.visible === false;
+    for (let key in renderPricesData) {
+        const row = renderPricesData[key];
+        const isRowDisabled = !!row.disabledByServer;
+        const hasError = !!row.error;
+        const isHiddenInStore = row.visible === false;
 
-            const tr = document.createElement("tr");
-            if (isRowDisabled) tr.classList.add("row-disabled");
-            if (hasError) tr.classList.add("row-error");
-            if (isHiddenInStore) tr.classList.add("row-error");
+        const tr = document.createElement("tr");
+        if (isRowDisabled) tr.classList.add("row-disabled");
+        if (hasError) tr.classList.add("row-error");
+        if (isHiddenInStore) tr.classList.add("row-error");
 
-            const isLowStock = row.quantity > 0 && row.quantity <= 3;
+        const isLowStock = row.quantity > 0 && row.quantity <= 3;
 
-            tr.innerHTML = `
+        tr.innerHTML = `
                 <td class="col-index">
                     <span class="channel-badge ${hasError ? "channel-badge-error" : ""}">
                         ${row.channel ?? "-"}
@@ -2832,33 +2832,33 @@
                     </button>
                 </td>
             `;
-            table.appendChild(tr);
-        }
-
+        table.appendChild(tr);
     }
 
-    function openAdvancedSettings(key) {
-        const rowData = renderPricesData[key];
+}
 
-        const rowName = rowData.name || "";
-        const rowPrice = rowData.price || 0;
-        const rowQty = rowData.quantity || 0;
-        const rowSize = String(rowData.size || "1");
-        const rowBarcode = rowData.barcode || "11123455556789";
-        const rowVisible = rowData.visible ?? true;
-        const rowChannel = rowData.channel ?? "-";
-        let rowError = rowData.error || "";
-        const rowDisabledByServer = rowData.disabledByServer || "";
+function openAdvancedSettings(key) {
+    const rowData = renderPricesData[key];
 
-        const modalHint = buildAdvancedHint({
-            key,
-            channel: rowChannel,
-            error: rowError,
-            disabledByServer: rowDisabledByServer,
-            visible: rowVisible,
-        });
+    const rowName = rowData.name || "";
+    const rowPrice = rowData.price || 0;
+    const rowQty = rowData.quantity || 0;
+    const rowSize = String(rowData.size || "1");
+    const rowBarcode = rowData.barcode || "11123455556789";
+    const rowVisible = rowData.visible ?? true;
+    const rowChannel = rowData.channel ?? "-";
+    let rowError = rowData.error || "";
+    const rowDisabledByServer = rowData.disabledByServer || "";
 
-        const modalBody = `
+    const modalHint = buildAdvancedHint({
+        key,
+        channel: rowChannel,
+        error: rowError,
+        disabledByServer: rowDisabledByServer,
+        visible: rowVisible,
+    });
+
+    const modalBody = `
                       <div class="adv-modal">
                           <div class="modal-product-icon">
                           ${getIcon("products")}
@@ -2957,80 +2957,80 @@
                       </div>
                   `;
 
-        showModal({
-            message: modalBody,
-            type: "noType",
-            onConfirm: async (modal) => {
-                const finalData = {
-                    id: rowData.id,
-                    channel: rowChannel,
-                    name: document.getElementById("modalName").value.trim(),
-                    barcode: document.getElementById("modalBarcode").value.trim(),
-                    price: Number(document.getElementById("modalPrice").value || 0),
-                    quantity: Number(document.getElementById("modalQty").value || 0),
-                    size: Number(document.getElementById("modalSize").value || 1),
-                    visible: document.getElementById("modalVisible").checked,
-                    gifts: [
-                        document.getElementById("gift1").value.trim(),
-                        document.getElementById("gift2").value.trim(),
-                        document.getElementById("gift3").value.trim(),
-                    ],
-                };
+    showModal({
+        message: modalBody,
+        type: "noType",
+        onConfirm: async (modal) => {
+            const finalData = {
+                id: rowData.id,
+                channel: rowChannel,
+                name: document.getElementById("modalName").value.trim(),
+                barcode: document.getElementById("modalBarcode").value.trim(),
+                price: Number(document.getElementById("modalPrice").value || 0),
+                quantity: Number(document.getElementById("modalQty").value || 0),
+                size: Number(document.getElementById("modalSize").value || 1),
+                visible: document.getElementById("modalVisible").checked,
+                gifts: [
+                    document.getElementById("gift1").value.trim(),
+                    document.getElementById("gift2").value.trim(),
+                    document.getElementById("gift3").value.trim(),
+                ],
+            };
 
+            renderPricesData[key] = {
+                ...renderPricesData[key],
+                ...finalData,
+            };
+
+            try {
+                await savePriceItemAdvanced(rowData.id, finalData);
                 renderPricesData[key] = {
                     ...renderPricesData[key],
                     ...finalData,
                 };
-
-                try {
-                    await savePriceItemAdvanced(rowData.id, finalData);
-                    renderPricesData[key] = {
-                        ...renderPricesData[key],
-                        ...finalData,
-                    };
-                    await renderPrices();
-                    modal.remove();
-                    return;
-                } catch (err) {
-                    // در صورت خطا مودال بسته نمی‌شه تا کاربر متوجه شکست ذخیره‌سازی بشه
-                    showToast(
-                        "error",
-                        "خطا",
-                        "ذخیره تغییرات با خطا مواجه شد ❌",
-                    );
-                }
-
-
                 await renderPrices();
                 modal.remove();
-            },
-        });
+                return;
+            } catch (err) {
+                // در صورت خطا مودال بسته نمی‌شه تا کاربر متوجه شکست ذخیره‌سازی بشه
+                showToast(
+                    "error",
+                    "خطا",
+                    "ذخیره تغییرات با خطا مواجه شد ❌",
+                );
+            }
+
+
+            await renderPrices();
+            modal.remove();
+        },
+    });
+}
+
+function changeQty(step) {
+    const input = document.getElementById("modalQty");
+
+    let current = Number(input.value || 0);
+
+    current += step;
+
+    if (current < 0) current = 0;
+
+    input.value = current;
+}
+
+function resolveChannelError(key) {
+    if (resolvingChannelError) return;
+
+    const row = renderPricesData[key];
+    if (!row) {
+        showToast("error", "خطا", "اطلاعات کانال پیدا نشد.");
+        return;
     }
 
-    function changeQty(step) {
-        const input = document.getElementById("modalQty");
-
-        let current = Number(input.value || 0);
-
-        current += step;
-
-        if (current < 0) current = 0;
-
-        input.value = current;
-    }
-
-    function resolveChannelError(key) {
-        if (resolvingChannelError) return;
-
-        const row = renderPricesData[key];
-        if (!row) {
-            showToast("error", "خطا", "اطلاعات کانال پیدا نشد.");
-            return;
-        }
-
-        showModal({
-            type: "warning",
-            message: `
+    showModal({
+        type: "warning",
+        message: `
                           <div style="text-align:right; line-height:1.9;">
                               آیا مطمئن هستید که ایراد
                               <strong>کانال ${row.channel}</strong>
@@ -3041,101 +3041,101 @@
                               </small>
                           </div>
                       `,
-            showConfirm: true,
-            onConfirm: async (modal) => {
-                if (resolvingChannelError) return;
+        showConfirm: true,
+        onConfirm: async (modal) => {
+            if (resolvingChannelError) return;
 
-                try {
-                    resolvingChannelError = true;
-                    showLoader(true);
+            try {
+                resolvingChannelError = true;
+                showLoader(true);
 
 
-                    const response = await api(`/api/price-resolve-error/${row.id}`, "POST");
+                const response = await api(`/api/price-resolve-error/${row.id}`, "POST");
 
-                    if (response?.success === false) {
-                        throw new Error(response.message || "ثبت رفع ایراد انجام نشد");
-                    }
-
-                    renderPricesData[key] = {
-                        ...renderPricesData[key],
-                        error: "",
-                    };
-
-                    const hintBox = document.getElementById("advancedHintBox");
-                    if (hintBox) {
-                        hintBox.classList.remove("advanced-hint-error");
-                        hintBox.classList.add("hidden");
-                        hintBox.innerHTML = buildAdvancedHint({
-                            key,
-                            channel: row.channel,
-                            error: "",
-                            disabledByServer: row.disabledByServer,
-                            visible: row.visible,
-                        });
-
-                        const modalVisibleCheckbox = document.getElementById("modalVisible");
-                        if (modalVisibleCheckbox) modalVisibleCheckbox.disabled = false;
-                    }
-
-                    await renderPrices();
-
-                    showToast(
-                        "success",
-                        "موفق",
-                        `ایراد کانال ${row.channel} با موفقیت رفع شد.`,
-                        4000,
-                    );
-
-                    modal.remove();
-
-                } catch (error) {
-                    showToast(
-                        "error",
-                        "خطا",
-                        error.message || "ارتباط با سرور ناموفق بود.",
-                        5000,
-                    );
-                } finally {
-                    resolvingChannelError = false;
-                    showLoader(false);
+                if (response?.success === false) {
+                    throw new Error(response.message || "ثبت رفع ایراد انجام نشد");
                 }
-            },
-            onCancel: () => {
+
+                renderPricesData[key] = {
+                    ...renderPricesData[key],
+                    error: "",
+                };
+
+                const hintBox = document.getElementById("advancedHintBox");
+                if (hintBox) {
+                    hintBox.classList.remove("advanced-hint-error");
+                    hintBox.classList.add("hidden");
+                    hintBox.innerHTML = buildAdvancedHint({
+                        key,
+                        channel: row.channel,
+                        error: "",
+                        disabledByServer: row.disabledByServer,
+                        visible: row.visible,
+                    });
+
+                    const modalVisibleCheckbox = document.getElementById("modalVisible");
+                    if (modalVisibleCheckbox) modalVisibleCheckbox.disabled = false;
+                }
+
+                await renderPrices();
+
                 showToast(
-                    "info",
-                    "لغو شد",
-                    `عملیات رفع ایراد کانال ${row.channel} لغو شد.`,
-                    2500,
+                    "success",
+                    "موفق",
+                    `ایراد کانال ${row.channel} با موفقیت رفع شد.`,
+                    4000,
                 );
-            },
-        });
+
+                modal.remove();
+
+            } catch (error) {
+                showToast(
+                    "error",
+                    "خطا",
+                    error.message || "ارتباط با سرور ناموفق بود.",
+                    5000,
+                );
+            } finally {
+                resolvingChannelError = false;
+                showLoader(false);
+            }
+        },
+        onCancel: () => {
+            showToast(
+                "info",
+                "لغو شد",
+                `عملیات رفع ایراد کانال ${row.channel} لغو شد.`,
+                2500,
+            );
+        },
+    });
+}
+
+function buildAdvancedHint({
+                               key,
+                               channel,
+                               error,
+                               disabledByServer,
+                               visible,
+                           }) {
+    const hints = [];
+
+    hints.push(`<div><strong>کانال:</strong> ${channel}</div>`);
+
+    if (!visible) {
+        hints.push(
+            `<div>این کالا در حال حاضر در فروشگاه نمایش داده نمی‌شود.</div>`,
+        );
     }
 
-    function buildAdvancedHint({
-                                   key,
-                                   channel,
-                                   error,
-                                   disabledByServer,
-                                   visible,
-                               }) {
-        const hints = [];
+    if (disabledByServer) {
+        hints.push(
+            `<div>این کانال به دلیل وضعیت فیزیکی یا تداخل با کانال دیگر غیرفعال شده است.</div>`,
+        );
+    }
 
-        hints.push(`<div><strong>کانال:</strong> ${channel}</div>`);
-
-        if (!visible) {
-            hints.push(
-                `<div>این کالا در حال حاضر در فروشگاه نمایش داده نمی‌شود.</div>`,
-            );
-        }
-
-        if (disabledByServer) {
-            hints.push(
-                `<div>این کانال به دلیل وضعیت فیزیکی یا تداخل با کانال دیگر غیرفعال شده است.</div>`,
-            );
-        }
-
-        if (error) {
-            hints.push(`
+    if (error) {
+        hints.push(`
                           <div class="advanced-hint-error-text">
                               <strong>خطا:</strong> ${error}
                           </div>
@@ -3149,76 +3149,76 @@
                               </button>
                           </div>
                       `);
-        } else {
-            hints.push(
-                `<div>وضعیت کانال در حال حاضر بدون خطا ثبت شده است.</div>`,
-            );
-        }
-
-        return hints.join("");
+    } else {
+        hints.push(
+            `<div>وضعیت کانال در حال حاضر بدون خطا ثبت شده است.</div>`,
+        );
     }
 
+    return hints.join("");
+}
 
-    function checkPhysicalChange(event) {
-        const select = event.target;
-        const newValue = select.value;
-        const oldValue = select.dataset.prevValue || "1";
 
-        if (newValue === "1") {
-            select.dataset.prevValue = newValue;
-            return;
-        }
+function checkPhysicalChange(event) {
+    const select = event.target;
+    const newValue = select.value;
+    const oldValue = select.dataset.prevValue || "1";
 
-        pendingPhysicalChange = {
-            select,
-            oldValue,
-            newValue,
-        };
+    if (newValue === "1") {
+        select.dataset.prevValue = newValue;
+        return;
+    }
 
-        showModal({
-            message: `
+    pendingPhysicalChange = {
+        select,
+        oldValue,
+        newValue,
+    };
+
+    showModal({
+        message: `
                               <div style="line-height: 1.9; text-align: right;">
                                   <p>شما در حال تغییر فضای اشغال شده دستگاه به <strong>${newValue}</strong> کانال هستید.</p>
                                   <p>این تغییر نیاز به اصلاح فیزیکی در دستگاه دارد. آیا این تغییر انجام شده و تایید می‌کنید؟</p>
                               </div>
                               `,
-            type: "danger",
-            onConfirm: async (modal) => {
-                if (pendingPhysicalChange) {
-                    pendingPhysicalChange.select.dataset.prevValue =
-                        pendingPhysicalChange.newValue;
-                    pendingPhysicalChange = null;
-                    modal.remove();
-                }
-            },
-            onCancel: () => {
-                if (pendingPhysicalChange) {
-                    pendingPhysicalChange.select.value =
-                        pendingPhysicalChange.oldValue;
-                    pendingPhysicalChange.select.dataset.prevValue =
-                        pendingPhysicalChange.oldValue;
-                    pendingPhysicalChange = null;
-                }
-            },
-        });
+        type: "danger",
+        onConfirm: async (modal) => {
+            if (pendingPhysicalChange) {
+                pendingPhysicalChange.select.dataset.prevValue =
+                    pendingPhysicalChange.newValue;
+                pendingPhysicalChange = null;
+                modal.remove();
+            }
+        },
+        onCancel: () => {
+            if (pendingPhysicalChange) {
+                pendingPhysicalChange.select.value =
+                    pendingPhysicalChange.oldValue;
+                pendingPhysicalChange.select.dataset.prevValue =
+                    pendingPhysicalChange.oldValue;
+                pendingPhysicalChange = null;
+            }
+        },
+    });
+}
+
+async function renderInfo() {
+
+
+    if (DEVELOP_MODE) {
+        renderInfoData = mock_data.info
+    } else {
+        showLoader(true);
+        renderInfoData = (await api("/api/info")) || {};
+        showLoader(false);
     }
 
-    async function renderInfo() {
 
+    const wifi = renderInfoData.wifi || {};
+    const lastOp = renderInfoData.last_operation || {};
 
-        if (DEVELOP_MODE) {
-            renderInfoData = mock_data.info
-        } else {
-            showLoader(true);
-            renderInfoData = (await api("/api/info")) || {};
-            showLoader(false);
-        }
-
-
-        const wifi = renderInfoData.wifi || {};
-        const lastOp = renderInfoData.last_operation || {};
-
-        app.innerHTML = `
+    app.innerHTML = `
                           <div class="card">
                           <div style="display: flex;justify-content: start;align-items: center; gap: 10px">
                               ${getIcon("reports")}
@@ -3294,28 +3294,28 @@
               `;
 
 
-    }
+}
 
-    async function copyIconText(name) {
-        const text = `\${getIcon("${name}")}`;
+async function copyIconText(name) {
+    const text = `\${getIcon("${name}")}`;
 
-        await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(text);
 
-        const copied = document.getElementById("copied");
-        copied.innerText = text + " copied";
-        copied.style.opacity = "1";
-        copied.style.transform = "translateX(-50%) translateY(0)";
+    const copied = document.getElementById("copied");
+    copied.innerText = text + " copied";
+    copied.style.opacity = "1";
+    copied.style.transform = "translateX(-50%) translateY(0)";
 
-        setTimeout(() => {
-            copied.style.opacity = "0";
-            copied.style.transform = "translateX(-50%) translateY(20px)";
-        }, 1200);
-    }
+    setTimeout(() => {
+        copied.style.opacity = "0";
+        copied.style.transform = "translateX(-50%) translateY(20px)";
+    }, 1200);
+}
 
-    async function renderDevelop() {
-        showLoader(true);
+async function renderDevelop() {
+    showLoader(true);
 
-        const iconsHTML = Object.entries(ICONS).map(([name, svg]) => `
+    const iconsHTML = Object.entries(ICONS).map(([name, svg]) => `
             <div class="dev-icon-card"
                  onclick="copyIconText('${name}')"
                  style="
@@ -3343,7 +3343,7 @@
             </div>
         `).join("");
 
-        app.innerHTML = `
+    app.innerHTML = `
             <div class="card">
                 <div style="display:flex;justify-content:start;align-items:center;gap:10px">
                     ${getIcon("debug")}
@@ -3382,20 +3382,20 @@
             </div>
         `;
 
+    showLoader(false);
+}
+
+async function renderServiceConfiguration() {
+
+    if (DEVELOP_MODE) {
+        renderServiceConfigurationData = mock_data.service_configuration
+    } else {
+        showLoader(true);
+        renderServiceConfiguration = await api('/api/service/config') || {};
         showLoader(false);
     }
 
-    async function renderServiceConfiguration() {
-
-        if (DEVELOP_MODE) {
-            renderServiceConfigurationData = mock_data.service_configuration
-        } else {
-            showLoader(true);
-            renderServiceConfiguration = await api('/api/service/config') || {};
-            showLoader(false);
-        }
-
-        app.innerHTML = `
+    app.innerHTML = `
                               <div class="card" style="padding-bottom: 80px">
 
                                   <div style="display:flex;align-items:center;gap:10px">
@@ -3471,90 +3471,90 @@
                       </div>
                       `;
 
-    }
+}
 
 
-    async function savePrices(type = '') {
+async function savePrices(type = '') {
 
-        const inputs = document.querySelectorAll("#priceTable input");
+    const inputs = document.querySelectorAll("#priceTable input");
 
-        const result = {};
+    const result = {};
 
-        inputs.forEach((input) => {
-            const key = input.dataset.key;
-            const field = input.dataset.field;
-
-            if (!result[key]) result[key] = {};
-
-            result[key][field] = input.value;
-        });
-
-        showLoader(true);
-
-        const res = await api("/api/prices", "POST", result);
-
-        showLoader(false);
-        if (type === "submitBtnClicked") {
-            if (res && res.success) {
-                showToast("success", "موفق", "✅ قیمت‌ها ذخیره شدند");
-            } else {
-                showToast("error", "خطا", "❌ خطا در ذخیره قیمت‌ها");
-            }
-        }
-    }
-
-    async function savePriceItemAdvanced(id, payload) {
-        return api(`/api/prices/${id}`, "PUT", payload);
-    }
-
-    async function saveFieldPrice(input) {
+    inputs.forEach((input) => {
         const key = input.dataset.key;
         const field = input.dataset.field;
-        const rowData = renderPricesData[key];
 
-        if (!rowData) return;
+        if (!result[key]) result[key] = {};
 
-        const value = input.type === "number" ? Number(input.value || 0) : input.value.trim();
-
-        try {
-            await api(`/api/prices/${rowData.id}`, "PATCH", {[field]: value});
-            rowData[field] = value;
-            flashInputBorder(input, true);
-        } catch (err) {
-            flashInputBorder(input, false);
-        }
-    }
-
-    function flashInputBorder(input, success) {
-        input.style.borderColor = success ? "#22c55e" : "#ef4444";
-        // setTimeout(() => {
-        //     input.style.borderColor = "";
-        // }, 3600);
-    }
-
-
-    document.addEventListener("click", function (e) {
-        document.querySelectorAll(".user-dropdown").forEach((drop) => {
-            if (!drop.parentElement.contains(e.target)) {
-                drop.classList.remove("open");
-            }
-        });
+        result[key][field] = input.value;
     });
 
-    async function renderFactory() {
+    showLoader(true);
 
+    const res = await api("/api/prices", "POST", result);
 
-        if (DEVELOP_MODE) {
-            renderFactoryData = mock_data.factory
+    showLoader(false);
+    if (type === "submitBtnClicked") {
+        if (res && res.success) {
+            showToast("success", "موفق", "✅ قیمت‌ها ذخیره شدند");
         } else {
-            showLoader(true);
-            renderFactoryData = (await api("/api/factory"));
-            showLoader(false);
+            showToast("error", "خطا", "❌ خطا در ذخیره قیمت‌ها");
         }
+    }
+}
 
-        const config = renderFactoryData;
+async function savePriceItemAdvanced(id, payload) {
+    return api(`/api/prices/${id}`, "PUT", payload);
+}
 
-        app.innerHTML = `
+async function saveFieldPrice(input) {
+    const key = input.dataset.key;
+    const field = input.dataset.field;
+    const rowData = renderPricesData[key];
+
+    if (!rowData) return;
+
+    const value = input.type === "number" ? Number(input.value || 0) : input.value.trim();
+
+    try {
+        await api(`/api/prices/${rowData.id}`, "PATCH", {[field]: value});
+        rowData[field] = value;
+        flashInputBorder(input, true);
+    } catch (err) {
+        flashInputBorder(input, false);
+    }
+}
+
+function flashInputBorder(input, success) {
+    input.style.borderColor = success ? "#22c55e" : "#ef4444";
+    // setTimeout(() => {
+    //     input.style.borderColor = "";
+    // }, 3600);
+}
+
+
+document.addEventListener("click", function (e) {
+    document.querySelectorAll(".user-dropdown").forEach((drop) => {
+        if (!drop.parentElement.contains(e.target)) {
+            drop.classList.remove("open");
+        }
+    });
+});
+
+async function renderFactory() {
+
+
+    if (DEVELOP_MODE) {
+        renderFactoryData = mock_data.factory
+    } else {
+        showLoader(true);
+        renderFactoryData = (await api("/api/factory"));
+        showLoader(false);
+    }
+
+    const config = renderFactoryData;
+
+    app.innerHTML = `
                       <div class="card">
                       <h2>تنظیمات کارخانه (Factory)</h2>
                       <form id="factoryForm">
@@ -3677,85 +3677,85 @@
                       </div>
                       `;
 
-        generateFactoryCode();
+    generateFactoryCode();
+}
+
+function toggleManualIpFields() {
+    const isChecked = document.getElementById("manualIpToggle").checked;
+    document.getElementById("manualIpFields").style.display = isChecked
+        ? "grid"
+        : "none";
+}
+
+function toggleCert(type) {
+    const isAuto = document.getElementById(type + "Auto").checked;
+    document.getElementById(type + "Cert").style.display = isAuto
+        ? "none"
+        : "block";
+}
+
+function generateFactoryCode() {
+    const code = Math.floor(1000 + Math.random() * 9000);
+    document.getElementById("authCode").innerText = code;
+}
+
+async function saveFactorySettings() {
+    const form = document.getElementById("factoryForm");
+    const formData = new FormData(form);
+    const data = Object.fromEntries(formData.entries());
+
+    data.use_static = document.getElementById("manualIpToggle").checked;
+    data.mqtt_auto = document.getElementById("mqttAuto").checked;
+
+    showLoader(true);
+    const res = await api("/api/factory-save", "POST", data);
+    showLoader(false);
+
+    if (res && res.success) {
+        showToast(
+            "success",
+            "موفق",
+            "✅ تنظیمات کارخانه با موفقیت ذخیره شد.",
+        );
+    } else {
+        showToast(
+            "error",
+            "خطا",
+            "❌ خطا در ذخیره. احتمالاً کد تایید اشتباه است.",
+        );
     }
+}
 
-    function toggleManualIpFields() {
-        const isChecked = document.getElementById("manualIpToggle").checked;
-        document.getElementById("manualIpFields").style.display = isChecked
-            ? "grid"
-            : "none";
-    }
+async function resetFactoryToDefault() {
+    showModal({
+        message:
+            "آیا مطمئن هستید که می‌خواهید تمام تنظیمات را به حالت اول برگردانید؟ این عمل غیرقابل بازگشت است!",
+        type: "danger",
+        onConfirm: async () => {
+            showLoader(true);
 
-    function toggleCert(type) {
-        const isAuto = document.getElementById(type + "Auto").checked;
-        document.getElementById(type + "Cert").style.display = isAuto
-            ? "none"
-            : "block";
-    }
+            const res = await api("/api/factory-reset", "POST", {
+                confirm: true,
+            });
 
-    function generateFactoryCode() {
-        const code = Math.floor(1000 + Math.random() * 9000);
-        document.getElementById("authCode").innerText = code;
-    }
+            showLoader(false);
 
-    async function saveFactorySettings() {
-        const form = document.getElementById("factoryForm");
-        const formData = new FormData(form);
-        const data = Object.fromEntries(formData.entries());
+            if (res.success) {
+                showToast(
+                    "success",
+                    "موفق",
+                    "✅ تنظیمات کارخانه با موفقیت ریست شد .",
+                );
+                location.reload();
+            } else {
+                showToast("error", "خطا", "❌ خطا در اتصال به سرور");
+            }
+        },
+    });
+}
 
-        data.use_static = document.getElementById("manualIpToggle").checked;
-        data.mqtt_auto = document.getElementById("mqttAuto").checked;
-
-        showLoader(true);
-        const res = await api("/api/factory-save", "POST", data);
-        showLoader(false);
-
-        if (res && res.success) {
-            showToast(
-                "success",
-                "موفق",
-                "✅ تنظیمات کارخانه با موفقیت ذخیره شد.",
-            );
-        } else {
-            showToast(
-                "error",
-                "خطا",
-                "❌ خطا در ذخیره. احتمالاً کد تایید اشتباه است.",
-            );
-        }
-    }
-
-    async function resetFactoryToDefault() {
-        showModal({
-            message:
-                "آیا مطمئن هستید که می‌خواهید تمام تنظیمات را به حالت اول برگردانید؟ این عمل غیرقابل بازگشت است!",
-            type: "danger",
-            onConfirm: async () => {
-                showLoader(true);
-
-                const res = await api("/api/factory-reset", "POST", {
-                    confirm: true,
-                });
-
-                showLoader(false);
-
-                if (res.success) {
-                    showToast(
-                        "success",
-                        "موفق",
-                        "✅ تنظیمات کارخانه با موفقیت ریست شد .",
-                    );
-                    location.reload();
-                } else {
-                    showToast("error", "خطا", "❌ خطا در اتصال به سرور");
-                }
-            },
-        });
-    }
-
-    function renderLogs() {
-        app.innerHTML = `
+function renderLogs() {
+    app.innerHTML = `
 
                               <div class="card" style="padding-bottom: 80px">
                                 <div style="display: flex;justify-content: start;align-items: center; gap: 10px">
@@ -3771,34 +3771,34 @@
 
                       `;
 
-        // ws = new WebSocket(`ws://${location.host}/ws`);
-        // ws.onmessage = (e) => {
-        //     const log = document.getElementById('logArea');
-        //     log.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${e.data}</div>`;
-        //     log.scrollTop = log.scrollHeight;
-        // };
+    // ws = new WebSocket(`ws://${location.host}/ws`);
+    // ws.onmessage = (e) => {
+    //     const log = document.getElementById('logArea');
+    //     log.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${e.data}</div>`;
+    //     log.scrollTop = log.scrollHeight;
+    // };
 
-        const logArea = document.getElementById("logArea");
+    const logArea = document.getElementById("logArea");
 
-        const mockLogs = [
-            "سیستم راه‌اندازی شد",
-            "اتصال وای‌فای برقرار شد",
-            "دریافت درخواست از کاربر",
-            "قیمت کالا بروزرسانی شد",
-            "دستگاه جدید متصل شد",
-            "درخواست API دریافت شد",
-            "بروزرسانی موجودی انجام شد",
-            "بررسی وضعیت شبکه",
-            "سیستم در حال اجرا است",
-            "عملیات با موفقیت انجام شد",
-        ];
+    const mockLogs = [
+        "سیستم راه‌اندازی شد",
+        "اتصال وای‌فای برقرار شد",
+        "دریافت درخواست از کاربر",
+        "قیمت کالا بروزرسانی شد",
+        "دستگاه جدید متصل شد",
+        "درخواست API دریافت شد",
+        "بروزرسانی موجودی انجام شد",
+        "بررسی وضعیت شبکه",
+        "سیستم در حال اجرا است",
+        "عملیات با موفقیت انجام شد",
+    ];
 
-        let i = 0;
+    let i = 0;
 
-        const interval = setInterval(() => {
-            const msg = mockLogs[i % mockLogs.length];
+    const interval = setInterval(() => {
+        const msg = mockLogs[i % mockLogs.length];
 
-            logArea.innerHTML += `
+        logArea.innerHTML += `
 
                               <div>
                                   [${new Date().toLocaleString("fa-ir")}]
@@ -3807,18 +3807,18 @@
 
                       `;
 
-            logArea.scrollTop = logArea.scrollHeight;
+        logArea.scrollTop = logArea.scrollHeight;
 
-            i++;
-        }, 1000);
-    }
+        i++;
+    }, 1000);
+}
 
-    function renderError(code) {
-        app.innerHTML = `
+function renderError(code) {
+    app.innerHTML = `
                   <div class="card" style="text-align:center"><h1>${code}
                   </h1><p>صفحه مورد نظر پیدا نشد!</p></div>
                       `;
-    }
+}
 
 Object.assign(window, {
     addNewClient,
