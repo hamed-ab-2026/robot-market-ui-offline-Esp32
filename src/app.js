@@ -999,7 +999,6 @@ function formatApiDateTime(value, showTime = true) {
     return new Intl.DateTimeFormat("fa-IR", options).format(date);
 }
 
-
 function mapDashboardData(apiData = {}) {
     if (!apiData) return;
 
@@ -1112,7 +1111,6 @@ const formatPaymentMethod = (method) => {
 
 async function renderDashboard() {
 
-
     if (DEVELOP_MODE) {
         renderDashboardData = mock_data.dashboard;
     } else {
@@ -1181,7 +1179,7 @@ async function renderDashboard() {
                               <div class="dashboard-greeting">
                                   <div class="greeting-icon">👋</div>
                                   <div>
-                                      <h2>سلام حامد</h2>
+                                      <h2>سلام hame...:)</h2>
                                       <span>نمای کلی همه دستگاه‌ها</span>
                                   </div>
                               </div>
@@ -1498,7 +1496,6 @@ async function renderDashboard() {
     startClock();
 }
 
-
 function setVolume(val) {
     document.getElementById("volumeValue").innerText = val + "%";
 
@@ -1562,6 +1559,7 @@ function startClock() {
 }
 
 function downloadReport(data) {
+
     // const blob = new Blob(
     //     [JSON.stringify(data, null, 2)],
     //     {type: "application/json"}
@@ -1634,7 +1632,6 @@ function markNotificationsRead() {
         3000,
     );
 }
-
 
 async function renderClients() {
 
@@ -2079,7 +2076,6 @@ function confirmSave(count) {
         },
     });
 }
-
 
 async function downloadBalanceCSV() {
 
@@ -2738,7 +2734,6 @@ function setupRealtimeUpdates() {
         setTimeout(setupRealtimeUpdates, 20000);
     };
 }
-
 
 async function renderPrices() {
 
@@ -3473,7 +3468,6 @@ async function renderServiceConfiguration() {
 
 }
 
-
 async function savePrices(type = '') {
 
     const inputs = document.querySelectorAll("#priceTable input");
@@ -3531,7 +3525,6 @@ function flashInputBorder(input, success) {
     //     input.style.borderColor = "";
     // }, 3600);
 }
-
 
 document.addEventListener("click", function (e) {
     document.querySelectorAll(".user-dropdown").forEach((drop) => {
@@ -3823,6 +3816,7 @@ function renderError(code) {
 Object.assign(window, {
     addNewClient,
     applyBalanceToAll,
+    addWifi,
     changeQty,
     checkPhysicalChange,
     confirmSave,
