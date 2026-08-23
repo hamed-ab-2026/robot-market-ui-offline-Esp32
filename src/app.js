@@ -2339,6 +2339,17 @@ async function renderSettings() {
 
     saveInitialFormState();
 
+    const apPasswordInput = document.getElementById("APwifiPassword");
+    const apPasswordConfirmationInput = document.getElementById("APConfwifiPassword");
+
+    [apPasswordInput, apPasswordConfirmationInput].forEach((input) => {
+        input?.addEventListener("input", () => {
+            if (apPasswordInput.value === apPasswordConfirmationInput.value) {
+                apPasswordConfirmationInput.setCustomValidity("");
+            }
+        });
+    });
+
     await loadWifiList();
 }
 
@@ -2364,9 +2375,39 @@ function hasFormChanged() {
     return initialFormState !== currentState;
 }
 
+function validateSettingsForm(form) {
+    const apPasswordInput = form.querySelector("#APwifiPassword");
+    const apPasswordConfirmationInput = form.querySelector("#APConfwifiPassword");
+
+    if (!apPasswordInput || !apPasswordConfirmationInput) return true;
+
+    if (apPasswordInput.value !== apPasswordConfirmationInput.value) {
+        const wifiDrawer = document.getElementById("wifi");
+        if (wifiDrawer) wifiDrawer.style.display = "block";
+
+        apPasswordConfirmationInput.setCustomValidity("تکرار رمز عبور با رمز عبور جدید یکسان نیست.");
+        apPasswordConfirmationInput.reportValidity();
+        apPasswordConfirmationInput.focus();
+
+        showToast(
+            "error",
+            "عدم تطابق رمز عبور",
+            "رمز عبور جدید و تکرار آن باید دقیقاً یکسان باشند.",
+        );
+
+        return false;
+    }
+
+    apPasswordConfirmationInput.setCustomValidity("");
+    return true;
+}
+
 async function submitSettingsAPI(form) {
+    if (!validateSettingsForm(form)) return false;
+
     showLoader(true);
     const formData = new FormData(form);
+    formData.delete("confPassword");
     const payload = Object.fromEntries(formData.entries());
 
 
@@ -2387,6 +2428,8 @@ async function submitSettingsAPI(form) {
 async function saveSettings(e) {
     e.preventDefault();
     const form = e.target;
+
+    if (!validateSettingsForm(form)) return;
 
     showModal({
         message: `
