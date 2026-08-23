@@ -2112,7 +2112,7 @@ async function renderSettings() {
         renderSettingsData = mock_data.settings
     } else {
         showLoader(true);
-        renderSettingsData = (await api("/api/settings")) || {};
+        renderSettingsData = (await api("/api/get-settings")) || {};
         showLoader(false);
     }
 
@@ -2121,6 +2121,7 @@ async function renderSettings() {
 
     const defaultDate = now.toISOString().split("T")[0];
     const defaultTime = now.toTimeString().slice(0, 5);
+
 
     app.innerHTML = `
                       <div class="card" style="padding-bottom: 60px">
@@ -2238,27 +2239,29 @@ async function renderSettings() {
 
                               </div>
 
-                              <!-- Admin Credentials -->
-                              <div class="drawer">
-                                  <div class="drawer-summary" onclick="toggleDrawer('admin')">
-                                       <div style="display: flex; align-items: center; justify-content: start; gap: 10px;">
-                                          ${getIcon("users")}
-                                          <div>مدیریت اپراتور ها</div>
-                                      </div>
-                                  </div>
-                                  <div class="drawer-content" id="admin" style="display:none">
-                                      <div class="grid">
-                                          <div class="form-group">
-                                              <label>نام کاربری اپراتور</label>
-                                              <input type="text" name="adminUsername" placeholder="نام کاربری اپراتور جدید را وارد کنید " value="${renderSettingsData.adminUsername || ""}">
-                                          </div>
-                                          <div class="form-group">
-                                              <label>رمز عبور </label>
-                                              <input type="password" name="adminPassword" placeholder="رمز عبور اپراتور جدید را وارد کنید">
-                                          </div>
-                                      </div>
-                                  </div>
-                              </div>
+                        <!--todo : felan niaz nadarim in bakhsho -->
+                                                      <!-- Admin Credentials -->
+                        <!--                              <div class="drawer">-->
+                        <!--                                  <div class="drawer-summary" onclick="toggleDrawer('admin')">-->
+                        <!--                                       <div style="display: flex; align-items: center; justify-content: start; gap: 10px;">-->
+                        <!--                                          ${getIcon("users")}-->
+                        <!--                                          <div>مدیریت اپراتور ها</div>-->
+                        <!--                                      </div>-->
+                        <!--                                  </div>-->
+                        <!--                                  <div class="drawer-content" id="admin" style="display:none">-->
+                        <!--                                      <div class="grid">-->
+                        <!--                                          <div class="form-group">-->
+                        <!--                                              <label>نام کاربری اپراتور</label>-->
+                        <!--                                              <input type="text" name="adminUsername" placeholder="نام کاربری اپراتور جدید را وارد کنید " value="${renderSettingsData.adminUsername || ""}">-->
+                        <!--                                          </div>-->
+                        <!--                                          <div class="form-group">-->
+                        <!--                                              <label>رمز عبور </label>-->
+                        <!--                                              <input type="password" name="adminPassword" placeholder="رمز عبور اپراتور جدید را وارد کنید">-->
+                        <!--                                          </div>-->
+                        <!--                                      </div>-->
+                        <!--                                  </div>-->
+                        <!--                              </div>-->
+
 
                               <!-- POS Device -->
                               <div class="drawer">
@@ -2366,8 +2369,8 @@ async function submitSettingsAPI(form) {
     const formData = new FormData(form);
     const payload = Object.fromEntries(formData.entries());
 
-    // const res = await api("/api/save-settings", "POST", payload);
-    const res = {success: true};
+
+    const res = await api("/api/save-settings", "POST", payload);
 
     showLoader(false);
 
