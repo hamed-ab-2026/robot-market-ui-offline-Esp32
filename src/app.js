@@ -1953,9 +1953,10 @@ async function renderBalance() {
         showLoader(false);
     }
 
-    const clients = renderBalanceData;
+    let clients = renderBalanceData || [];
 
     let rows = "";
+
 
     clients.forEach((c, i) => {
         rows += `
@@ -2542,19 +2543,19 @@ function addWifi() {
                 return showToast("warning", "", "قبل از تایید رمز را وارد کنید ");
 
             try {
-                // const res = await fetch("/api/wifi/connect", {
-                //     method: "POST",
-                //     headers: {"Content-Type": "application/json"},
-                //     body: JSON.stringify({
-                //         ssid,
-                //         password
-                //     })
-                // });
+                const res = await fetch("/api/wifi/connect", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({
+                        ssid,
+                        password
+                    })
+                });
 
-                // const result = await res.json();
-                const result = {
-                    success: false, // for test
-                };
+                const result = await res.json();
+                // const result = {
+                //     success: false, // for test
+                // };
 
                 if (result.success) {
                     await loadWifiList();
@@ -2583,29 +2584,29 @@ async function loadWifiList() {
                   `;
 
     try {
-        // const res = await fetch("/api/wifi/scan");
-        // const networks = await res.json();
-        const networks = [
-            {
-                ssid: "RobotMarket_5G",
-                rssi: -45,
-                secure: true,
-                connected: true,
-            },
-            {ssid: "RobotMarket", rssi: -70, secure: false, connected: false},
-            {
-                ssid: "RobotMarket-3",
-                rssi: -60,
-                secure: false,
-                connected: false,
-            },
-            {
-                ssid: "RobotMarket-2",
-                rssi: -50,
-                secure: false,
-                connected: false,
-            },
-        ];
+        const res = await fetch("/api/wifi/scan");
+        const networks = await res.json();
+        // const networks = [
+        //     {
+        //         ssid: "RobotMarket_5G",
+        //         rssi: -45,
+        //         secure: true,
+        //         connected: true,
+        //     },
+        //     {ssid: "RobotMarket", rssi: -70, secure: false, connected: false},
+        //     {
+        //         ssid: "RobotMarket-3",
+        //         rssi: -60,
+        //         secure: false,
+        //         connected: false,
+        //     },
+        //     {
+        //         ssid: "RobotMarket-2",
+        //         rssi: -50,
+        //         secure: false,
+        //         connected: false,
+        //     },
+        // ];
 
         networks.sort((a, b) => b.rssi - a.rssi);
 
@@ -2687,19 +2688,19 @@ function selectWifi(ssid) {
                 return showToast("warning", "", "قبل از تایید رمز را وارد کنید ");
 
             try {
-                // const res = await fetch("/api/wifi/connect", {
-                //     method: "POST",
-                //     headers: {"Content-Type": "application/json"},
-                //     body: JSON.stringify({
-                //         ssid,
-                //         password
-                //     })
-                // });
+                const res = await fetch("/api/wifi/connect", {
+                    method: "POST",
+                    headers: {"Content-Type": "application/json"},
+                    body: JSON.stringify({
+                        ssid,
+                        password
+                    })
+                });
 
-                // const result = await res.json();
-                const result = {
-                    success: true, // for test
-                };
+                const result = await res.json();
+                // const result = {
+                //     success: true, // for test
+                // };
 
                 if (result.success) {
                     applySelectedWifi(ssid, password);
