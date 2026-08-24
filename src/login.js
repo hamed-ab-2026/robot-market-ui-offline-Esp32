@@ -34,10 +34,7 @@
     const IRAN_MOBILE_REGEX = /^09\d{9}$/;
 
     const state = {
-        loginMode: "pass",
-        countdownActive: false,
-        resetPolling: null,
-        secondsLeft: RESET_COUNTDOWN_SECONDS
+        loginMode: "pass", countdownActive: false, resetPolling: null, secondsLeft: RESET_COUNTDOWN_SECONDS
     };
 
 
@@ -64,25 +61,25 @@
 
     const APP_MESSAGES = Object.freeze({
         auth: {
-            login_success: "ورود با موفقیت انجام شد.",
-            login_failed: "نام کاربری یا رمز عبور اشتباه است.",
-            Too_many_requests: "بیش از حد تلاش کرده‌اید.",
+            login_success: "ورود با موفقیت انجام شد",
+            repass_success: "رمز عبور با موفقیت بازیابی شد",
+            login_failed: "نام کاربری یا رمز عبور اشتباه است",
+            Too_many_requests: "بیش از حد تلاش کرده‌اید",
             Unauthorized: "نام کاربری و رمز عبور صحیح نمیباشد",
-            otp_sent: "کد یکبار مصرف برای شما ارسال شد.",
-            otp_invalid: "کد اشتباه است.",
-            otp_incomplete: "کد کامل نیست.",
-            change_password_required: "برای امنیت بیشتر رمز خود را عوض کنید.",
-            password_changed: "رمز عبور با موفقیت تغییر یافت.",
-            password_change_failed: "خطا در تغییر رمز عبور رخ داد.",
+            otp_sent: "کد یکبار مصرف برای شما ارسال شد",
+            otp_invalid: "کد اشتباه است",
+            otp_incomplete: "کد کامل نیست",
+            change_password_required: "برای امنیت بیشتر رمز خود را عوض کنید",
+            password_changed: "رمز عبور با موفقیت تغییر یافت",
+            password_change_failed: "خطا در تغییر رمز عبور رخ داد",
             password_invalid: "رمز اشتباه است"
-        },
-        validation: {
-            invalid_mobile: "شماره موبایل اشتباه است.",
-            credentials_required: "نام کاربری و پسورد الزامی است.",
-            password_too_short: "پسورد حداقل ۶ کاراکتر باید باشد.",
-            all_fields_required: "همه فیلدها الزامی است.",
-            new_password_too_short: "رمز جدید حداقل ۸ کاراکتر باید باشد.",
-            passwords_do_not_match: "رمزها یکسان نیستند."
+        }, validation: {
+            invalid_mobile: "شماره موبایل اشتباه است",
+            credentials_required: "نام کاربری و پسورد الزامی است",
+            password_too_short: "پسورد حداقل ۶ کاراکتر باید باشد",
+            all_fields_required: "همه فیلدها الزامی است",
+            new_password_too_short: "رمز جدید حداقل ۸ کاراکتر باید باشد",
+            passwords_do_not_match: "رمزها یکسان نیستند"
         }
     });
 
@@ -123,9 +120,7 @@
     async function api(endpoint, options = {}) {
 
         const config = {
-            method: "GET",
-            headers: {"Content-Type": "application/json"},
-            ...options
+            method: "GET", headers: {"Content-Type": "application/json"}, ...options
         };
 
         if (config.body && typeof config.body !== "string") {
@@ -194,14 +189,13 @@
      * Swaps the visible auth view. Starts/stops the forgot-password
      * countdown+polling as a side effect of entering/leaving that view.
      */
-    function showView(viewId) {
+    async function showView(viewId) {
 
         Object.values(dom.views).forEach(v => v.classList.add("hidden"));
 
         document.getElementById(viewId).classList.remove("hidden");
 
-        if (viewId === "forgetView") startResetProcess();
-        else stopResetProcess();
+        if (viewId === "forgetView") await startResetProcess(); else stopResetProcess();
     }
 
     /**
@@ -214,10 +208,7 @@
         state.loginMode = mode;
 
         document.querySelectorAll(".tab").forEach(tab => {
-            tab.classList.toggle(
-                "active",
-                tab.textContent.includes(mode === "otp" ? "کد" : "رمز")
-            );
+            tab.classList.toggle("active", tab.textContent.includes(mode === "otp" ? "کد" : "رمز"));
         });
 
         const isOtp = mode === "otp";
@@ -287,6 +278,7 @@
 
             if (res?.status === "success") {
                 // stopResetProcess();
+                showToast(APP_MESSAGES.auth.repass_success, "success");
                 showView("loginView");
             }
 
@@ -303,8 +295,7 @@
         const m = Math.floor(state.secondsLeft / 60);
         const s = state.secondsLeft % 60;
 
-        dom.countdown.textContent =
-            `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+        dom.countdown.textContent = `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 
         if (state.secondsLeft > 0) {
             state.secondsLeft--;
@@ -330,11 +321,9 @@
             return null;
         }
 
-        if (!username || !password)
-            return APP_MESSAGES.validation.credentials_required;
+        if (!username || !password) return APP_MESSAGES.validation.credentials_required;
 
-        if (password.length < MIN_LOGIN_PASSWORD_LENGTH)
-            return APP_MESSAGES.validation.password_too_short;
+        if (password.length < MIN_LOGIN_PASSWORD_LENGTH) return APP_MESSAGES.validation.password_too_short;
 
         return null;
     }
@@ -361,8 +350,7 @@
 
         try {
 
-            if (isOtp) await handleOtpLogin(username);
-            else await handlePasswordLogin(username, password);
+            if (isOtp) await handleOtpLogin(username); else await handlePasswordLogin(username, password);
 
         } finally {
             btn.classList.toggle("loading", false);
@@ -380,11 +368,10 @@
 
 
         await api("/send-otp", {
-            method: "POST",
-            body: {username}
+            method: "POST", body: {username}
         });
 
-        showView("otpView");
+        await showView("otpView");
 
         dom.otpInputs[0].focus();
     }
@@ -401,8 +388,7 @@
 
         try {
             const response = await api("api/login", {
-                method: "POST",
-                body: {username, password}
+                method: "POST", body: {username, password}
             });
 
             if (!response?.success) return;
@@ -414,7 +400,7 @@
 
                 localStorage.setItem("username", username);
                 showToast(APP_MESSAGES.auth.change_password_required, "info");
-                showView("changePasswordView");
+                await showView("changePasswordView");
                 return;
             }
 
@@ -457,8 +443,7 @@
         try {
 
             const res = await api("/verify-otp", {
-                method: "POST",
-                body: {code}
+                method: "POST", body: {code}
             });
 
             localStorage.setItem("rm_token", res.token);
@@ -506,11 +491,8 @@
 
         try {
             const res = await api("api/change-password", {
-                method: "POST",
-                body: {
-                    username,
-                    oldPassword,
-                    newPassword
+                method: "POST", body: {
+                    username, oldPassword, newPassword
                 }
             });
 
@@ -558,10 +540,7 @@
             const isVisible = input.type === "text";
             input.type = isVisible ? "password" : "text";
             button.setAttribute("aria-pressed", String(!isVisible));
-            button.setAttribute(
-                "aria-label",
-                `${isVisible ? "نمایش" : "مخفی کردن"} ${input.labels?.[0]?.textContent || "رمز عبور"}`,
-            );
+            button.setAttribute("aria-label", `${isVisible ? "نمایش" : "مخفی کردن"} ${input.labels?.[0]?.textContent || "رمز عبور"}`,);
             input.focus();
         });
     });
