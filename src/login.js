@@ -50,6 +50,7 @@
         },
 
         form: document.getElementById("loginForm"),
+        changePasswordForm: document.getElementById("changePasswordForm"),
         submitBtn: document.querySelector('#loginForm button[type="submit"]'),
         username: document.getElementById("username"),
         usernameLabel: document.getElementById("usernameLabel"),
@@ -253,7 +254,7 @@
        "reset" or when the countdown reaches zero.
     ========================= */
 
-    function startResetProcess() {
+    async function startResetProcess() {
 
         state.secondsLeft = RESET_COUNTDOWN_SECONDS;
         state.countdownActive = true;
@@ -262,7 +263,9 @@
 
         clearInterval(state.resetPolling);
 
-        state.resetPolling = setInterval(checkResetStatus, 1000);
+        // state.resetPolling = setInterval(checkResetStatus, 1000);
+        await checkResetStatus()
+
     }
 
     function stopResetProcess() {
@@ -280,11 +283,10 @@
 
         try {
 
-            const res = await fetch("/reset-status");
-            const txt = await res.text();
+            const res = await api("api/reset-status");
 
-            if (txt === "reset") {
-                stopResetProcess();
+            if (res?.status === "success") {
+                // stopResetProcess();
                 showView("loginView");
             }
 
@@ -512,7 +514,7 @@
                 }
             });
 
-            if (!res?.success || !res.token) {
+            if (!res?.success) {
                 showToast(APP_MESSAGES.auth.password_change_failed, "error");
                 return;
             }
@@ -542,6 +544,27 @@
 
 
     dom.form.addEventListener("submit", handleLoginSubmit);
+
+    dom.changePasswordForm?.addEventListener("submit", (event) => {
+        event.preventDefault();
+        changePassword();
+    });
+
+    document.querySelectorAll("[data-toggle-password]").forEach((button) => {
+        button.addEventListener("click", () => {
+            const input = document.getElementById(button.dataset.togglePassword);
+            if (!input) return;
+
+            const isVisible = input.type === "text";
+            input.type = isVisible ? "password" : "text";
+            button.setAttribute("aria-pressed", String(!isVisible));
+            button.setAttribute(
+                "aria-label",
+                `${isVisible ? "نمایش" : "مخفی کردن"} ${input.labels?.[0]?.textContent || "رمز عبور"}`,
+            );
+            input.focus();
+        });
+    });
 
     dom.otpInputs.forEach((input, index, arr) => {
         input.addEventListener("input", () => {

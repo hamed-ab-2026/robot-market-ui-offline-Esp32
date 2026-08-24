@@ -12,6 +12,7 @@ let dashboardRawData = {};
 let volumeTimeout = null;
 let initialFormState = null;
 let resolvingChannelError = false;
+let wifiScanInProgress = false;
 
 let renderPricesData = {};
 let renderDashboardData = null;
@@ -2576,6 +2577,9 @@ function addWifi() {
 async function loadWifiList() {
     const container = document.getElementById("wifiList");
     if (!container) return;
+    if (wifiScanInProgress) return;
+
+    wifiScanInProgress = true;
 
     container.innerHTML = `
                       <div class="wifi-loading">
@@ -2631,6 +2635,8 @@ async function loadWifiList() {
                               خطا در اسکن شبکه ${getIcon("danger")}
                           </div>
                       `;
+    } finally {
+        wifiScanInProgress = false;
     }
 }
 

@@ -291,6 +291,40 @@
             box-shadow: 0 0 0 4px var(--primary-light);
         }
 
+        .password-input-row {
+            display: flex;
+            align-items: stretch;
+            gap: 8px;
+        }
+
+        .password-input-row input {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .password-toggle-btn {
+            flex: 0 0 48px;
+            min-height: 48px;
+            border: 1.5px solid var(--border);
+            border-radius: 14px;
+            background: var(--bg-soft);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: 0.2s ease;
+        }
+
+        .password-toggle-btn:hover,
+        .password-toggle-btn[aria-pressed="true"] {
+            border-color: var(--primary);
+            background: var(--primary-light);
+            color: var(--primary);
+        }
+
+        .password-toggle-btn:focus-visible {
+            outline: none;
+            box-shadow: 0 0 0 4px var(--primary-light);
+        }
+
         .error-msg {
             display: none;
             margin-top: 10px;
@@ -623,22 +657,51 @@
 
         <p class="subtitle">برای اولین ورود باید رمز عبور خود را تغییر دهید</p>
 
-        <div class="input-group">
-            <label for="oldPassword">رمز قبلی</label>
-            <input type="password" id="oldPassword" placeholder="رمز قبلی">
-        </div>
+        <form id="changePasswordForm">
+            <div class="input-group">
+                <label for="oldPassword">رمز قبلی</label>
+                <div class="password-input-row">
+                    <button type="button" class="password-toggle-btn flex-center" data-toggle-password="oldPassword"
+                            aria-label="نمایش رمز قبلی" aria-pressed="false">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                    <input type="password" id="oldPassword" placeholder="رمز قبلی" autocomplete="current-password">
+                </div>
+            </div>
 
-        <div class="input-group">
-            <label for="newPassword">رمز جدید</label>
-            <input type="password" id="newPassword" placeholder="رمز جدید">
-        </div>
+            <div class="input-group">
+                <label for="newPassword">رمز جدید</label>
+                <div class="password-input-row">
+                    <button type="button" class="password-toggle-btn flex-center" data-toggle-password="newPassword"
+                            aria-label="نمایش رمز جدید" aria-pressed="false">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                    <input type="password" id="newPassword" placeholder="رمز جدید" autocomplete="new-password">
+                </div>
+            </div>
 
-        <div class="input-group">
-            <label for="confirmPassword">تایید رمز جدید</label>
-            <input type="password" id="confirmPassword" placeholder="تکرار رمز جدید">
-        </div>
+            <div class="input-group">
+                <label for="confirmPassword">تایید رمز جدید</label>
+                <div class="password-input-row">
+                    <button type="button" class="password-toggle-btn flex-center" data-toggle-password="confirmPassword"
+                            aria-label="نمایش تکرار رمز جدید" aria-pressed="false">
+                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                            <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                        </svg>
+                    </button>
+                    <input type="password" id="confirmPassword" placeholder="تکرار رمز جدید" autocomplete="new-password">
+                </div>
+            </div>
 
-        <button class="btn primary w-full" id="changePasswordButton" onclick="changePassword()">تغییر رمز</button>
+            <button type="submit" class="btn primary w-full" id="changePasswordButton">تغییر رمز</button>
+        </form>
     </div>
 
 
