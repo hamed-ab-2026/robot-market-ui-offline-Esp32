@@ -2535,9 +2535,9 @@ function addWifi() {
                                   `,
 
         onConfirm: async (modal) => {
-            const ssid = modal.querySelector("#hiddenWifiSsidModal");
-            const passInput = modal.querySelector("#hiddenWifiPasswordModal");
-            const password = passInput.value;
+            const ssid = modal.querySelector("#hiddenWifiSsidModal").value;
+            const password = modal.querySelector("#hiddenWifiPasswordModal").value;
+
 
             if (!password)
                 return showToast("warning", "", "قبل از تایید رمز را وارد کنید ");
@@ -2581,34 +2581,16 @@ async function loadWifiList() {
                       <div class="wifi-loading">
                           در حال اسکن شبکه‌ها...
                       </div>
-                  `;
+    `;
 
     try {
-        const res = await fetch("/api/wifi/scan");
-        const networks = await res.json();
-        // const networks = [
-        //     {
-        //         ssid: "RobotMarket_5G",
-        //         rssi: -45,
-        //         secure: true,
-        //         connected: true,
-        //     },
-        //     {ssid: "RobotMarket", rssi: -70, secure: false, connected: false},
-        //     {
-        //         ssid: "RobotMarket-3",
-        //         rssi: -60,
-        //         secure: false,
-        //         connected: false,
-        //     },
-        //     {
-        //         ssid: "RobotMarket-2",
-        //         rssi: -50,
-        //         secure: false,
-        //         connected: false,
-        //     },
-        // ];
+        const payload = await api("/api/wifi/scan");
 
-        networks.sort((a, b) => b.rssi - a.rssi);
+        if (!Array.isArray(payload?.networks)) {
+            throw new TypeError("پاسخ اسکن وای‌فای دارای آرایه networks نیست.");
+        }
+
+        const networks = [...payload.networks].sort((a, b) => b.rssi - a.rssi);
 
         container.innerHTML = networks
             .map((net) => {
@@ -2641,6 +2623,9 @@ async function loadWifiList() {
             })
             .join("");
     } catch (err) {
+
+        console.log('loadWifiList err ==>', err)
+
         container.innerHTML = `
                           <div class="wifi-error">
                               خطا در اسکن شبکه ${getIcon("danger")}
@@ -3865,6 +3850,7 @@ Object.assign(window, {
     addNewClient,
     applyBalanceToAll,
     addWifi,
+    loadWifiList,
     changeQty,
     checkPhysicalChange,
     confirmSave,
