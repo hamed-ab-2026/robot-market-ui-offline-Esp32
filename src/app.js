@@ -3762,9 +3762,8 @@ async function resetFactoryToDefault() {
         message:
             "آیا مطمئن هستید که می‌خواهید تمام تنظیمات را به حالت اول برگردانید؟ این عمل غیرقابل بازگشت است!",
         type: "danger",
-        onConfirm: async () => {
+        onConfirm: async (modal) => {
             showLoader(true);
-
             const res = await api("/api/factory-reset", "POST", {
                 confirm: true,
             });
@@ -3772,12 +3771,16 @@ async function resetFactoryToDefault() {
             showLoader(false);
 
             if (res.success) {
+                modal.remove();
+
                 showToast(
                     "success",
                     "موفق",
                     "✅ تنظیمات کارخانه با موفقیت ریست شد .",
                 );
-                location.reload();
+
+                await renderFactory()
+
             } else {
                 showToast("error", "خطا", "❌ خطا در اتصال به سرور");
             }
