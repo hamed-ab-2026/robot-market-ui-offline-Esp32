@@ -2643,7 +2643,7 @@ async function loadWifiList() {
     } catch (err) {
         container.innerHTML = `
                           <div class="wifi-error">
-                              خطا در اسکن شبکه
+                              خطا در اسکن شبکه ${getIcon("danger")}
                           </div>
                       `;
     }
@@ -3811,46 +3811,47 @@ function renderLogs() {
 
                       `;
 
-    // ws = new WebSocket(`ws://${location.host}/ws`);
-    // ws.onmessage = (e) => {
-    //     const log = document.getElementById('logArea');
-    //     log.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${e.data}</div>`;
-    //     log.scrollTop = log.scrollHeight;
-    // };
 
-    const logArea = document.getElementById("logArea");
+    ws = new WebSocket(`ws://${location.host}/ws`);
+    ws.onmessage = (e) => {
+        const log = document.getElementById('logArea');
+        log.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${e.data}</div>`;
+        log.scrollTop = log.scrollHeight;
+    };
 
-    const mockLogs = [
-        "سیستم راه‌اندازی شد",
-        "اتصال وای‌فای برقرار شد",
-        "دریافت درخواست از کاربر",
-        "قیمت کالا بروزرسانی شد",
-        "دستگاه جدید متصل شد",
-        "درخواست API دریافت شد",
-        "بروزرسانی موجودی انجام شد",
-        "بررسی وضعیت شبکه",
-        "سیستم در حال اجرا است",
-        "عملیات با موفقیت انجام شد",
-    ];
+    // const logArea = document.getElementById("logArea");
 
-    let i = 0;
+    // const mockLogs = [
+    //     "سیستم راه‌اندازی شد",
+    //     "اتصال وای‌فای برقرار شد",
+    //     "دریافت درخواست از کاربر",
+    //     "قیمت کالا بروزرسانی شد",
+    //     "دستگاه جدید متصل شد",
+    //     "درخواست API دریافت شد",
+    //     "بروزرسانی موجودی انجام شد",
+    //     "بررسی وضعیت شبکه",
+    //     "سیستم در حال اجرا است",
+    //     "عملیات با موفقیت انجام شد",
+    // ];
 
-    const interval = setInterval(() => {
-        const msg = mockLogs[i % mockLogs.length];
+    // let i = 0;
 
-        logArea.innerHTML += `
-
-                              <div>
-                                  [${new Date().toLocaleString("fa-ir")}]
-                                  ${msg}
-                              </div>
-
-                      `;
-
-        logArea.scrollTop = logArea.scrollHeight;
-
-        i++;
-    }, 1000);
+    // const interval = setInterval(() => {
+    //     const msg = mockLogs[i % mockLogs.length];
+    //
+    //     logArea.innerHTML += `
+    //
+    //                           <div>
+    //                               [${new Date().toLocaleString("fa-ir")}]
+    //                               ${msg}
+    //                           </div>
+    //
+    //                   `;
+    //
+    //     logArea.scrollTop = logArea.scrollHeight;
+    //
+    //     i++;
+    // }, 1000);
 }
 
 function renderError(code) {

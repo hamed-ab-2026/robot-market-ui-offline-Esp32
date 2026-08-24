@@ -1360,14 +1360,27 @@
         /* =========================================================
              PAGE: Wi-Fi network list (device info / setup page)
           ========================================================= */
+        .wifi-error {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: red;
+            gap: 10px;
+        }
+
+
         .wifi-list {
+            height: 70%;
             display: flex;
             flex-direction: column;
+            justify-content: center;
+            align-items: center;
             gap: 6px;
             margin-top: 10px;
         }
 
         .wifi-item {
+            width: 100%;
             display: flex;
             justify-content: space-between;
             align-items: center;
