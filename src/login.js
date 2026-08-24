@@ -254,8 +254,7 @@
 
         clearInterval(state.resetPolling);
 
-        // state.resetPolling = setInterval(checkResetStatus, 1000);
-        await checkResetStatus()
+        state.resetPolling = setInterval(checkResetStatus, 1000);
 
     }
 
@@ -277,9 +276,9 @@
             const res = await api("api/reset-status");
 
             if (res?.status === "success") {
-                // stopResetProcess();
+                stopResetProcess();
                 showToast(APP_MESSAGES.auth.repass_success, "success");
-                showView("loginView");
+                await showView("loginView");
             }
 
         } catch {
