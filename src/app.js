@@ -1584,10 +1584,10 @@ async function renderNotifications() {
 
     if (DEVELOP_MODE) {
         payload = {
-            items: (mock_data.dashboard?.notifications || []).map((notification, index) => ({
+            notifications: (mock_data.dashboard?.notifications || []).map((notification, index) => ({
                 id: notification.id ?? index + 1,
                 ...notification,
-                is_read: notification.is_read ?? notification.read ?? false,
+                read: notification.read ?? false,
             })),
         };
     } else {
@@ -1596,11 +1596,11 @@ async function renderNotifications() {
         showLoader(false);
     }
 
-    const notifications = Array.isArray(payload?.items)
-        ? payload.items
+    const notifications = Array.isArray(payload?.notifications)
+        ? payload.notifications
         : [];
 
-    const unreadCount = notifications.filter((notification) => notification?.is_read !== true).length;
+    const unreadCount = notifications.filter((notification) => notification?.read !== true).length;
     updateNotifBadge(unreadCount);
 
     app.innerHTML = `
@@ -1636,7 +1636,7 @@ async function renderNotifications() {
     notifications.forEach((notification) => {
         const item = document.createElement("article");
         item.className = "notification-item";
-        item.classList.toggle("is-read", notification?.is_read === true);
+        item.classList.toggle("is-read", notification?.read === true);
         item.dataset.notificationId = String(notification?.id ?? "");
 
         const dot = document.createElement("div");
@@ -1661,14 +1661,37 @@ async function renderNotifications() {
     });
 }
 
-function markNotificationsRead() {
-    // call api
-    showToast(
-        "success",
-        "",
-        "وضعیت همه پیام ها به خوانده شد تغییر کرد",
-        3000,
-    );
+async function markNotificationsRead() {
+    showLoader(true);
+
+    try {
+        const res = await api("/api/notifications/read-all", "POST");
+
+        if (!res?.success) {
+            throw new Error(res?.message || "تغییر وضعیت اعلان‌ها انجام نشد.");
+        }
+
+        document.querySelectorAll(".notification-item").forEach((item) => {
+            item.classList.add("is-read");
+        });
+        updateNotifBadge(0);
+
+        showToast(
+            "success",
+            "موفق",
+            "وضعیت همه پیام‌ها به خوانده‌شده تغییر کرد.",
+            3000,
+        );
+    } catch (err) {
+        showToast(
+            "error",
+            "خطا در اعلان‌ها",
+            err?.message || "امکان تغییر وضعیت اعلان‌ها وجود ندارد. دوباره تلاش کنید.",
+            5000,
+        );
+    } finally {
+        showLoader(false);
+    }
 }
 
 async function renderClients() {
@@ -3149,12 +3172,14 @@ function resolveChannelError(key) {
 
                 await renderPrices();
 
-                showToast(
-                    "success",
-                    "موفق",
-                    `ایراد کانال ${row.channel} با موفقیت رفع شد.`,
-                    4000,
-                );
+                if (response?.success === true) {
+                    showToast(
+                        "success",
+                        "موفق",
+                        `ایراد کانال ${row.channel} با موفقیت رفع شد.`,
+                        4000,
+                    );
+                }
 
                 modal.remove();
 
@@ -3850,39 +3875,6 @@ function renderLogs() {
         log.scrollTop = log.scrollHeight;
     };
 
-    // const logArea = document.getElementById("logArea");
-
-    // const mockLogs = [
-    //     "سیستم راه‌اندازی شد",
-    //     "اتصال وای‌فای برقرار شد",
-    //     "دریافت درخواست از کاربر",
-    //     "قیمت کالا بروزرسانی شد",
-    //     "دستگاه جدید متصل شد",
-    //     "درخواست API دریافت شد",
-    //     "بروزرسانی موجودی انجام شد",
-    //     "بررسی وضعیت شبکه",
-    //     "سیستم در حال اجرا است",
-    //     "عملیات با موفقیت انجام شد",
-    // ];
-
-    // let i = 0;
-
-    // const interval = setInterval(() => {
-    //     const msg = mockLogs[i % mockLogs.length];
-    //
-    //     logArea.innerHTML += `
-    //
-    //                           <div>
-    //                               [${new Date().toLocaleString("fa-ir")}]
-    //                               ${msg}
-    //                           </div>
-    //
-    //                   `;
-    //
-    //     logArea.scrollTop = logArea.scrollHeight;
-    //
-    //     i++;
-    // }, 1000);
 }
 
 function renderError(code) {
