@@ -38,6 +38,10 @@ export default defineConfig({
                 target: "http://192.168.1.180",
                 changeOrigin: true,
             },
+            "/ws": {
+                target: "ws://192.168.1.180",
+                ws: true
+            }
         },
     },
     build: {

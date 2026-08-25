@@ -3852,13 +3852,13 @@ async function resetFactoryToDefault() {
 
 function renderLogs() {
     app.innerHTML = `
-
                               <div class="card" style="padding-bottom: 80px">
                                 <div style="display: flex;justify-content: start;align-items: center; gap: 10px">
                                   ${getIcon("logs")}
                                   <h2>لاگ سیستمی</h2>
                                 </div>
-                                  <div style="height:70vh;  overflow:auto" id="logArea"></div>
+                                  <div id="logConnectionStatus" class="muted-text">در حال اتصال به سرویس لاگ...</div>
+                                  <div style="height:70vh; overflow:auto" id="logArea"></div>
                               </div>
 
                               <div class="page-action-bar">
@@ -3868,12 +3868,44 @@ function renderLogs() {
                       `;
 
 
-    ws = new WebSocket(`ws://${location.host}/ws`);
-    ws.onmessage = (e) => {
-        const log = document.getElementById('logArea');
-        log.innerHTML += `<div>[${new Date().toLocaleTimeString()}] ${e.data}</div>`;
-        log.scrollTop = log.scrollHeight;
+    const websocketProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const socket = new WebSocket(`${websocketProtocol}//${location.host}/ws`);
+    ws = socket;
+
+    const setConnectionStatus = (message) => {
+        const status = document.getElementById("logConnectionStatus");
+        if (status && ws === socket) status.textContent = message;
     };
+
+    socket.addEventListener("open", () => {
+        setConnectionStatus("اتصال به سرویس لاگ برقرار است.");
+    });
+
+    socket.addEventListener("message", (event) => {
+        const logArea = document.getElementById("logArea");
+        if (!logArea || ws !== socket) return;
+
+        const logLine = document.createElement("div");
+        const time = new Date().toLocaleTimeString("fa-IR");
+        logLine.textContent = `[${time}] ${String(event.data)}`;
+        logArea.appendChild(logLine);
+
+        while (logArea.childElementCount > 500) {
+            logArea.firstElementChild.remove();
+        }
+
+        logArea.scrollTop = logArea.scrollHeight;
+    });
+
+    socket.addEventListener("error", () => {
+        setConnectionStatus("خطا در اتصال به سرویس لاگ.");
+    });
+
+    socket.addEventListener("close", () => {
+        if (ws !== socket) return;
+        setConnectionStatus("اتصال سرویس لاگ قطع شد.");
+        ws = null;
+    });
 
 }
 
