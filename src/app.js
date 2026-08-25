@@ -635,8 +635,6 @@ async function router() {
         return;
     }
 
-    updateNotifBadge(25);
-
     updateActiveNav(route);
 
     if (ws) {
@@ -650,7 +648,7 @@ async function router() {
             await renderDashboard();
             break;
         case "#/notifications":
-            renderNotifications();
+            await renderNotifications();
             break;
         case "#/prices":
             await renderPrices();
@@ -1111,6 +1109,9 @@ const formatPaymentMethod = (method) => {
 };
 
 async function renderDashboard() {
+
+    // for updateNotifBadge
+    await renderNotifications()
 
     if (DEVELOP_MODE) {
         renderDashboardData = mock_data.dashboard;
@@ -1578,8 +1579,29 @@ function downloadReport(data) {
     showToast("warning", "توجه", "این بخش در حال توسعه میباشد 👽");
 }
 
-function renderNotifications() {
+async function renderNotifications() {
+    let payload;
 
+    if (DEVELOP_MODE) {
+        payload = {
+            items: (mock_data.dashboard?.notifications || []).map((notification, index) => ({
+                id: notification.id ?? index + 1,
+                ...notification,
+                is_read: notification.is_read ?? notification.read ?? false,
+            })),
+        };
+    } else {
+        showLoader(true);
+        payload = await api("/api/notifications");
+        showLoader(false);
+    }
+
+    const notifications = Array.isArray(payload?.items)
+        ? payload.items
+        : [];
+
+    const unreadCount = notifications.filter((notification) => notification?.is_read !== true).length;
+    updateNotifBadge(unreadCount);
 
     app.innerHTML = `
                       <div class="card">
@@ -1593,35 +1615,50 @@ function renderNotifications() {
 
                       </div>
 
-                      <div class="notifications-page" id="notificationsList">
-                          <div class="notification-item">
-                              <div class="notification-dot"></div>
-                              <div>
-                                  <strong>سفارش جدید ثبت شد</strong>
-                                  <p style="margin:6px 0 0;color:var(--text-soft)">یک سفارش جدید از دستگاه ۱۲۳ ثبت شده است.</p>
-                                  <small style="color:var(--text-placeholder)">۵ دقیقه پیش</small>
-                              </div>
-                          </div>
-
-                          <div class="notification-item">
-                              <div class="notification-dot" style="background:var(--warning)"></div>
-                              <div>
-                                  <strong>موجودی کم</strong>
-                                  <p style="margin:6px 0 0;color:var(--text-soft)">محصول "چیپس" در حال نزدیک شدن به اتمام است.</p>
-                                  <small style="color:var(--text-placeholder)">۳۰ دقیقه پیش</small>
-                              </div>
-                          </div>
-
-                          <div class="notification-item">
-                              <div class="notification-dot" style="background:var(--info)"></div>
-                              <div>
-                                  <strong>بروزرسانی سیستم</strong>
-                                  <p style="margin:6px 0 0;color:var(--text-soft)">نسخه جدید پنل مدیریت منتشر شد.</p>
-                                  <small style="color:var(--text-placeholder)">۲ ساعت پیش</small>
-                              </div>
-                          </div>
-                      </div>
+                      <div class="notifications-page" id="notificationsList"></div>
                   `;
+
+    const list = document.getElementById("notificationsList");
+
+    if (!notifications.length) {
+        list.innerHTML = `<div class="card empty-state">اعلانی برای نمایش وجود ندارد.</div>`;
+        return;
+    }
+
+    const statusColors = {
+        success: "var(--success-solid)",
+        warning: "var(--warning)",
+        error: "var(--danger-solid)",
+        danger: "var(--danger-solid)",
+        info: "var(--info)",
+    };
+
+    notifications.forEach((notification) => {
+        const item = document.createElement("article");
+        item.className = "notification-item";
+        item.classList.toggle("is-read", notification?.is_read === true);
+        item.dataset.notificationId = String(notification?.id ?? "");
+
+        const dot = document.createElement("div");
+        dot.className = "notification-dot";
+        dot.style.background = statusColors[notification?.status] || "var(--info)";
+
+        const content = document.createElement("div");
+        content.className = "notification-content";
+
+        const title = document.createElement("strong");
+        title.textContent = safe(notification?.title);
+
+        const message = document.createElement("p");
+        message.textContent = safe(notification?.message);
+
+        const time = document.createElement("small");
+        time.textContent = safe(notification?.time);
+
+        content.append(title, message, time);
+        item.append(dot, content);
+        list.appendChild(item);
+    });
 }
 
 function markNotificationsRead() {
