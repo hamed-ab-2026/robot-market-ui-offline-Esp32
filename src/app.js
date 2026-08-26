@@ -25,6 +25,140 @@ let renderFactoryData = null;
 
 let pendingPhysicalChange = null;
 
+const PERMISSIONS = Object.freeze({
+    DASHBOARD_VIEW: "dashboard.view",
+    DEVICE_VOLUME_UPDATE: "device.volume.update",
+    NOTIFICATIONS_VIEW: "notifications.view",
+    NOTIFICATIONS_MARK_READ: "notifications.mark_read",
+    PRICES_VIEW: "prices.view",
+    PRICES_UPDATE: "prices.update",
+    CLIENTS_VIEW: "clients.view",
+    CLIENTS_CREATE: "clients.create",
+    CLIENTS_UPDATE: "clients.update",
+    CLIENTS_DELETE: "clients.delete",
+    BALANCE_VIEW: "balance.view",
+    BALANCE_UPDATE: "balance.update",
+    BALANCE_EXPORT: "balance.export",
+    SETTINGS_VIEW: "settings.view",
+    SETTINGS_UPDATE: "settings.update",
+    WIFI_SCAN: "wifi.scan",
+    WIFI_CONNECT: "wifi.connect",
+    INFO_VIEW: "info.view",
+    SERVICE_CONFIG_VIEW: "service_config.view",
+    SERVICE_CONFIG_UPDATE: "service_config.update",
+    FACTORY_VIEW: "factory.view",
+    FACTORY_UPDATE: "factory.update",
+    FACTORY_RESET: "factory.reset",
+    LOGS_VIEW: "logs.view",
+    SYSTEM_REBOOT: "system.reboot",
+});
+
+const ALL_PERMISSIONS = Object.freeze(Object.values(PERMISSIONS));
+
+const ROLE_PERMISSIONS = Object.freeze({
+    admin: ALL_PERMISSIONS,
+    operator: Object.freeze([
+        PERMISSIONS.DASHBOARD_VIEW,
+        PERMISSIONS.DEVICE_VOLUME_UPDATE,
+        PERMISSIONS.NOTIFICATIONS_VIEW,
+        PERMISSIONS.NOTIFICATIONS_MARK_READ,
+        PERMISSIONS.PRICES_VIEW,
+        PERMISSIONS.PRICES_UPDATE,
+        PERMISSIONS.CLIENTS_VIEW,
+        PERMISSIONS.BALANCE_VIEW,
+        PERMISSIONS.BALANCE_UPDATE,
+        PERMISSIONS.BALANCE_EXPORT,
+        PERMISSIONS.SETTINGS_VIEW,
+        PERMISSIONS.INFO_VIEW,
+        PERMISSIONS.SERVICE_CONFIG_VIEW,
+        PERMISSIONS.LOGS_VIEW,
+    ]),
+    viewer: Object.freeze([
+        PERMISSIONS.DASHBOARD_VIEW,
+        PERMISSIONS.NOTIFICATIONS_VIEW,
+        PERMISSIONS.PRICES_VIEW,
+        PERMISSIONS.CLIENTS_VIEW,
+        PERMISSIONS.BALANCE_VIEW,
+        PERMISSIONS.INFO_VIEW,
+    ]),
+});
+
+const ROUTE_PERMISSIONS = Object.freeze({
+    "#/": PERMISSIONS.DASHBOARD_VIEW,
+    "#/notifications": PERMISSIONS.NOTIFICATIONS_VIEW,
+    "#/prices": PERMISSIONS.PRICES_VIEW,
+    "#/clients": PERMISSIONS.CLIENTS_VIEW,
+    "#/balance": PERMISSIONS.BALANCE_VIEW,
+    "#/settings": PERMISSIONS.SETTINGS_VIEW,
+    "#/factory": PERMISSIONS.FACTORY_VIEW,
+    "#/logs": PERMISSIONS.LOGS_VIEW,
+    "#/info": PERMISSIONS.INFO_VIEW,
+    "#/service-configuration": PERMISSIONS.SERVICE_CONFIG_VIEW,
+});
+
+function getStoredUser() {
+    try {
+        const storedUser = JSON.parse(localStorage.getItem("rm_user") || "null");
+        return storedUser && typeof storedUser === "object" ? storedUser : {};
+    } catch {
+        return {};
+    }
+}
+
+let currentUser = getStoredUser();
+
+function getCurrentPermissions() {
+    if (DEVELOP_MODE) return ALL_PERMISSIONS;
+    if (Array.isArray(currentUser.permissions)) return currentUser.permissions;
+    return ROLE_PERMISSIONS[currentUser.role] || [];
+}
+
+function hasPermission(permission) {
+    return DEVELOP_MODE || getCurrentPermissions().includes(permission);
+}
+
+function requirePermission(permission) {
+    if (hasPermission(permission)) return true;
+    showToast("error", "عدم دسترسی", "شما اجازه انجام این عملیات را ندارید.");
+    return false;
+}
+
+function applyPermissionVisibility() {
+    document.querySelectorAll('a[href^="#/"]').forEach((link) => {
+        const permission = ROUTE_PERMISSIONS[link.getAttribute("href")];
+        if (permission) link.classList.toggle("hidden", !hasPermission(permission));
+    });
+
+    document.querySelectorAll('[onclick="rebootSystem()"]').forEach((item) => {
+        item.classList.toggle("hidden", !hasPermission(PERMISSIONS.SYSTEM_REBOOT));
+    });
+}
+
+/*
+// پس از آماده‌شدن API، این تابع را از حالت کامنت خارج و قبل از router اجرا کنید.
+async function loadCurrentUser() {
+    const response = await api("/api/auth/me");
+    currentUser = response.user;
+    localStorage.setItem("rm_user", JSON.stringify(currentUser));
+    applyPermissionVisibility();
+
+
+    نمونه پاسخ آینده بک‌اند:
+{
+  "user": {
+    "id": 12,
+    "role": "operator",
+    "permissions": [
+      "dashboard.view",
+      "prices.view",
+      "prices.update"
+    ]
+  }
+}
+
+}
+*/
+
 if (DEVELOP_MODE) {
     showLoader(true)
     setTimeout(() => {
@@ -244,6 +378,8 @@ function toggleUserMenu(event) {
 }
 
 function rebootSystem() {
+    if (!requirePermission(PERMISSIONS.SYSTEM_REBOOT)) return;
+
     showModal({
         message: "آیا از ری‌استارت سیستم مطمئن هستید؟",
         type: "reboot",
@@ -417,8 +553,10 @@ function updateNotifBadge(count) {
 
 async function api(url, method = "GET", data = null) {
 
+    const normalizedMethod = String(method || "GET").toUpperCase();
+
     const options = {
-        method,
+        method: normalizedMethod,
         headers: {
             Authorization: "Bearer " + localStorage.getItem("rm_token"),
         },
@@ -443,6 +581,18 @@ async function api(url, method = "GET", data = null) {
             return;
         }
 
+        if (res.status === 403) {
+            let errorMessage = "شما اجازه انجام این عملیات را ندارید.";
+            try {
+                const errorBody = await res.json();
+                errorMessage = errorBody?.message || errorMessage;
+            } catch {
+                // پاسخ 403 ممکن است بدنه JSON نداشته باشد.
+            }
+            showToast("error", "عدم دسترسی", errorMessage);
+            return {};
+        }
+
         if (res.status && res.status >= 500 && res.status < 600) {
             const err = new Error(`خطای سرور. لطفاً کمی بعد دوباره تلاش کنید.`);
             err.isServerError = true;
@@ -450,7 +600,16 @@ async function api(url, method = "GET", data = null) {
             throw err;
         }
 
-        return await res.json();
+        if (!res.ok) {
+            throw new Error(`API_ERROR_${res.status}`);
+        }
+
+        if (res.status === 204) return {success: true};
+
+        const contentType = res.headers.get("content-type");
+        return contentType?.includes("application/json")
+            ? await res.json()
+            : await res.text();
 
     } catch (e) {
         if (e.isServerError) {
@@ -614,6 +773,7 @@ document.addEventListener("DOMContentLoaded", () => {
 // ====================  (Routing) ====================
 
 applyDevMode();
+applyPermissionVisibility();
 
 window.addEventListener("hashchange", router);
 
@@ -636,6 +796,12 @@ async function router() {
     }
 
     updateActiveNav(route);
+
+    const requiredRoutePermission = ROUTE_PERMISSIONS[route];
+    if (requiredRoutePermission && !hasPermission(requiredRoutePermission)) {
+        renderError(403, "شما اجازه مشاهده این بخش را ندارید.");
+        return;
+    }
 
     if (ws) {
         ws.close();
@@ -1796,6 +1962,8 @@ async function renderClients() {
 }
 
 function openClientsAdvancedSettings(key) {
+    if (!requirePermission(PERMISSIONS.CLIENTS_UPDATE)) return;
+
     const rowData = renderClientsData[key];
     if (!rowData) return;
 
@@ -1900,6 +2068,8 @@ function openClientsAdvancedSettings(key) {
 }
 
 async function deleteClient(key) {
+    if (!requirePermission(PERMISSIONS.CLIENTS_DELETE)) return;
+
     const rowData = renderClientsData[key];
     if (!rowData) return;
 
@@ -1931,6 +2101,8 @@ async function deleteClient(key) {
 }
 
 async function addNewClient() {
+    if (!requirePermission(PERMISSIONS.CLIENTS_CREATE)) return;
+
     const modalBody = `
                   <div class="adv-modal">
                       <div class="modal-product-icon">
@@ -2510,6 +2682,9 @@ async function saveSettings(e) {
 }
 
 function handleNavigation(targetPath) {
+    const requiredPermission = ROUTE_PERMISSIONS[targetPath];
+    if (requiredPermission && !requirePermission(requiredPermission)) return;
+
     const form = document.getElementById("settingsForm");
 
     if (hasFormChanged()) {
@@ -2604,16 +2779,10 @@ function addWifi() {
                 return showToast("warning", "", "قبل از تایید رمز را وارد کنید ");
 
             try {
-                const res = await fetch("/api/wifi/connect", {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({
-                        ssid,
-                        password
-                    })
+                const result = await api("/api/wifi/connect", "POST", {
+                    ssid,
+                    password,
                 });
-
-                const result = await res.json();
                 // const result = {
                 //     success: false, // for test
                 // };
@@ -2739,16 +2908,10 @@ function selectWifi(ssid) {
                 return showToast("warning", "", "قبل از تایید رمز را وارد کنید ");
 
             try {
-                const res = await fetch("/api/wifi/connect", {
-                    method: "POST",
-                    headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({
-                        ssid,
-                        password
-                    })
+                const result = await api("/api/wifi/connect", "POST", {
+                    ssid,
+                    password,
                 });
-
-                const result = await res.json();
                 // const result = {
                 //     success: true, // for test
                 // };
@@ -2804,6 +2967,7 @@ function toggleInputVisibility(inputId, visibleType = "text") {
 // ==========================================
 function setupRealtimeUpdates() {
     if (DEVELOP_MODE) return;
+    if (!hasPermission(PERMISSIONS.PRICES_VIEW)) return;
 
     const eventSource = new EventSource("/api/realtime-updates");
 
@@ -3851,6 +4015,10 @@ async function resetFactoryToDefault() {
 }
 
 function renderLogs() {
+    if (!hasPermission(PERMISSIONS.LOGS_VIEW)) {
+        renderError(403, "شما اجازه مشاهده لاگ‌های سیستم را ندارید.");
+        return;
+    }
     app.innerHTML = `
                               <div class="card" style="padding-bottom: 80px">
                                 <div style="display: flex;justify-content: start;align-items: center; gap: 10px">
@@ -3864,7 +4032,6 @@ function renderLogs() {
                               <div class="page-action-bar">
                                   <button class="btn btn-outline" onclick="location.href='#/settings'">بازگشت</button>
                               </div>
-
                       `;
 
 
@@ -3909,10 +4076,10 @@ function renderLogs() {
 
 }
 
-function renderError(code) {
+function renderError(code, message = "صفحه مورد نظر پیدا نشد!") {
     app.innerHTML = `
                   <div class="card" style="text-align:center"><h1>${code}
-                  </h1><p>صفحه مورد نظر پیدا نشد!</p></div>
+                  </h1><p>${safe(message)}</p></div>
                       `;
 }
 
