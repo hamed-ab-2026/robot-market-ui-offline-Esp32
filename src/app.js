@@ -1723,8 +1723,14 @@ async function renderClients() {
         renderClientsData = mock_data.clients
     } else {
         showLoader(true);
-        renderClientsData = await api("/api/clients");
-        showLoader(false);
+        try {
+            const clients = await api("/api/clients");
+            renderClientsData = clients && typeof clients === "object" && !Array.isArray(clients)
+                ? clients
+                : {};
+        } finally {
+            showLoader(false);
+        }
     }
 
     app.innerHTML = `
@@ -1765,7 +1771,7 @@ async function renderClients() {
         const row = renderClientsData[key];
         const isRowDisabled = !!row.disabledByServer;
         const hasError = !!row.error;
-        const isActive = row.status === "فعال";
+        const isActive = isClientActive(row.status);
 
         const tr = document.createElement("tr");
 
@@ -1818,13 +1824,22 @@ async function renderClients() {
     }
 }
 
+function isClientActive(status) {
+    return ["active", "فعال"].includes(String(status || "").trim().toLowerCase());
+}
+
+function getClientApiStatus(isActive) {
+    return isActive ? "Active" : "Inactive";
+}
+
+
 function openClientsAdvancedSettings(key) {
     const rowData = renderClientsData[key];
     if (!rowData) return;
 
     const rowName = rowData.name || "";
     const rowId = rowData.id || "";
-    const rowVisible = rowData.status === "فعال";
+    const rowVisible = isClientActive(rowData.status);
     let rowError = rowData.error || "";
     const rowDisabledByServer = rowData.disabledByServer || "";
 
@@ -1889,35 +1904,49 @@ function openClientsAdvancedSettings(key) {
         message: modalBody,
         type: "noType",
         onConfirm: async (modal) => {
-            const finalData = {
-                id: document.getElementById("modalId").value.trim(),
-                name: document.getElementById("modalName").value.trim(),
-                status: document.getElementById("modalVisible").checked ? "فعال" : "غیر فعال",
-            };
+            const id = document.getElementById("modalId").value.trim();
+            const name = document.getElementById("modalName").value.trim();
+            const isActive = document.getElementById("modalVisible").checked;
 
-            renderClientsData[key] = {
-                ...renderClientsData[key],
-                ...finalData,
-            };
-
-            try {
-                // await api(`/api/clients/${key}`, {
-                //     method: "PUT",
-                //     body: finalData,
-                // });
-                await renderClients();
-                modal.remove();
+            if (!name || !id) {
+                showToast("error", "خطا", "نام و شناسه کاربر نمی‌توانند خالی باشند.");
                 return;
+            }
+
+            const finalData = {
+                id,
+                name,
+                status: getClientApiStatus(isActive),
+            };
+
+            showLoader(true);
+            try {
+                if (DEVELOP_MODE) {
+                    renderClientsData[key] = {...renderClientsData[key], ...finalData};
+                } else {
+                    const response = await api(
+                        `/api/clients/${encodeURIComponent(key)}`,
+                        "PUT",
+                        finalData,
+                    );
+                    if (response.success) {
+                        await renderClients();
+
+                        modal.remove();
+                        showToast("success", "موفق", "اطلاعات کاربر با موفقیت ویرایش شد.");
+                    }
+                }
+
+
             } catch (err) {
                 showToast(
                     "error",
                     "خطا",
                     "ذخیره تغییرات با خطا مواجه شد ❌",
                 );
+            } finally {
+                showLoader(false);
             }
-
-            await renderClients();
-            modal.remove();
         },
     });
 }
@@ -1930,24 +1959,35 @@ async function deleteClient(key) {
         message: `آیا از حذف کاربر «${rowData.name || rowData.id || ""}» مطمئن هستید؟`,
         type: "danger",
         onConfirm: async (modal) => {
+            showLoader(true);
             try {
-                // await api(`/api/clients/${key}`, { method: "DELETE" });
+                if (DEVELOP_MODE) {
+                    delete renderClientsData[key];
+                } else {
+                    const response = await api(
+                        `/api/clients/${encodeURIComponent(key)}`,
+                        "DELETE",
+                    );
+                    if (response?.success !== true) {
+                        throw new Error("CLIENT_DELETE_FAILED");
+                    }
+                }
 
-                delete renderClientsData[key];
                 await renderClients();
-                modal.remove();
+                document.querySelectorAll(".app-modal").forEach((item) => item.remove());
                 showToast(
                     "success",
                     "حذف",
                     "حذف کاربر با موفقیت انجام شد ✅",
                 );
-                location.reload()
             } catch (err) {
                 showToast(
                     "error",
                     "خطا",
                     "حذف کاربر با خطا مواجه شد ❌",
                 );
+            } finally {
+                showLoader(false);
             }
         },
     });
@@ -1992,7 +2032,7 @@ async function addNewClient() {
         onConfirm: async (modal) => {
             const name = document.getElementById("modalName").value.trim();
             const id = document.getElementById("modalId").value.trim();
-            const status = document.getElementById("modalVisible").checked ? "فعال" : "غیر فعال";
+            const status = getClientApiStatus(document.getElementById("modalVisible").checked);
 
             if (!name || !id) {
                 showToast(
@@ -2005,23 +2045,30 @@ async function addNewClient() {
 
             const finalData = {name, id, status};
 
+            showLoader(true);
             try {
-                // const newClient = await api("/api/clients", {
-                //     method: "POST",
-                //     body: finalData,
-                // });
+                if (DEVELOP_MODE) {
+                    const newKey = `client_${Date.now()}`;
+                    renderClientsData[newKey] = finalData;
+                } else {
+                    const response = await api("/api/clients", "POST", finalData);
 
-                const newKey = id; // بعد از وصل شدن api، احتمالاً باید از newClient.key یا مشابه استفاده کنید
-                renderClientsData[newKey] = finalData;
+                    if (response.success) {
+                        modal.remove();
+                        await renderClients();
+                        showToast("success", "موفق", "کاربر جدید با موفقیت اضافه شد.");
+                    }
 
-                await renderClients();
-                modal.remove();
+                }
+
             } catch (err) {
                 showToast(
                     "error",
                     "خطا",
                     "افزودن کاربر با خطا مواجه شد ❌",
                 );
+            } finally {
+                showLoader(false);
             }
         },
     });
