@@ -470,10 +470,17 @@ async function api(url, method = "GET", data = null) {
 
         if (res.status === 204) return {success: true};
 
-        const contentType = res.headers.get("content-type");
-        return contentType?.includes("application/json")
-            ? await res.json()
-            : await res.text();
+        const contentType = res.headers.get("content-type") || "";
+
+        if (contentType.includes("application/json")) {
+            return await res.json();
+        }
+
+        if (contentType.toLowerCase().includes("text/csv")) {
+            return await res.blob();
+        }
+
+        return await res.text();
 
     } catch (e) {
         if (e.isServerError) {
@@ -486,7 +493,7 @@ async function api(url, method = "GET", data = null) {
             showToast(
                 "error",
                 "خطا",
-                'خطایی رخ داد. اتصال اینترنت خود را بررسی کنید.',
+                e.message || 'خطایی رخ داد',
             );
         }
         return {};
@@ -1837,6 +1844,7 @@ function openClientsAdvancedSettings(key) {
     const rowData = renderClientsData[key];
     if (!rowData) return;
 
+
     const rowName = rowData.name || "";
     const rowId = rowData.id || "";
     const rowVisible = isClientActive(rowData.status);
@@ -1861,11 +1869,12 @@ function openClientsAdvancedSettings(key) {
                       <div class="input-group">
                             <label>ویرایش ایدی</label>
                             <input
-                                type="number"
+                                type="text"
                                 id="modalId"
                                 placeholder="ایدی کاربر"
                                 value="${rowId}"
                                 class="input-text"
+                                style="direction: ltr"
                                 min="0"
                                 oninput="this.value = this.value.replace(/[^0-9]/g, '')"
                             >
@@ -2210,32 +2219,31 @@ function confirmSave(count) {
 }
 
 async function downloadBalanceCSV() {
+    showLoader(true);
 
-    // Call Api ...
+    try {
+        const csvBlob = await api("/api/balance/export");
 
-    showToast("info", "درحال توسعه", "این بخش در حال توسعه میباشد ...")
+        if (!(csvBlob instanceof Blob) || !csvBlob.type.toLowerCase().includes("text/csv")) {
+            throw new TypeError("پاسخ سرور فایل CSV نیست.");
+        }
 
-    // if (!resp.ok) {
-    //     showToast("error", "خطا", "خطا در دانلود CSV");
-    //     return;
-    // }
+        const downloadUrl = URL.createObjectURL(csvBlob);
+        const link = document.createElement("a");
+        link.href = downloadUrl;
+        link.download = "clients_balance.csv";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(downloadUrl);
 
-    // const blob = await resp.blob();
-
-    // const url = window.URL.createObjectURL(blob);
-
-    // const a = document.createElement("a");
-    //
-    // a.href = url;
-    // a.download = "clients_balance.csv";
-    //
-    // document.body.appendChild(a);
-    //
-    // a.click();
-    //
-    // a.remove();
-    //
-    // window.URL.revokeObjectURL(url);
+        showToast("success", "موفق", "فایل موجودی با موفقیت دریافت شد.");
+    } catch (error) {
+        console.error("downloadBalanceCSV error:", error);
+        showToast("error", "خطا", "دریافت فایل CSV موجودی انجام نشد.");
+    } finally {
+        showLoader(false);
+    }
 }
 
 async function renderSettings() {
