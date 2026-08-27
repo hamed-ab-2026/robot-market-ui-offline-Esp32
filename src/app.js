@@ -2230,6 +2230,7 @@ async function downloadBalanceCSV() {
         }
 
         const downloadUrl = URL.createObjectURL(csvBlob);
+
         const link = document.createElement("a");
         link.href = downloadUrl;
         link.download = "clients_balance.csv";

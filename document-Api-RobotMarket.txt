@@ -409,7 +409,7 @@ Response: { "success": true }
 
 7.3 Export balances [PLANNED]
 
-  GET /api/balance/export
+  GET /api/balance-export
   Authentication: Yes
   Response content type: text/csv; charset=utf-8
 
@@ -685,7 +685,7 @@ initial authentication-message protocol before enabling this endpoint.
   DELETE /api/clients/{key}                 (planned)
   GET    /api/balance
   POST   /api/balance
-  GET    /api/balance/export                (planned)
+  GET    /api/balance-export                (planned)
   GET    /api/prices
   POST   /api/prices
   PUT    /api/prices/{id}
