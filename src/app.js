@@ -2107,6 +2107,7 @@ async function renderBalance() {
 
                           <td>
                               <input
+                                  style="direction: ltr"
                                   type="number"
                                   step="100000"
                                   id="balance${i}"
@@ -2123,7 +2124,7 @@ async function renderBalance() {
 
                               <div style="display: flex; align-items: center; justify-content: start; gap: 10px">
                                     ${getIcon("pay")}
-                                    <h2>مدیریت موجودی مشتریان</h2>
+                                    <h2>مدیریت موجودی کاربران</h2>
                               </div>
 
                                 <table id="balanceTable">
@@ -2222,7 +2223,7 @@ async function downloadBalanceCSV() {
     showLoader(true);
 
     try {
-        const csvBlob = await api("/api/balance/export");
+        const csvBlob = await api("/api/balance-export");
 
         if (!(csvBlob instanceof Blob) || !csvBlob.type.toLowerCase().includes("text/csv")) {
             throw new TypeError("پاسخ سرور فایل CSV نیست.");
