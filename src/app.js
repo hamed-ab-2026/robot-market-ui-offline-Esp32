@@ -13,6 +13,7 @@ let volumeTimeout = null;
 let initialFormState = null;
 let resolvingChannelError = false;
 let wifiScanInProgress = false;
+let logoutInProgress = false;
 
 let renderPricesData = {};
 let renderDashboardData = null;
@@ -757,11 +758,34 @@ function showToast(type = "info", title = "اعلان", message = "", timeout = 
     }
 }
 
-function logout() {
+async function logout() {
+    if (logoutInProgress) return;
+    logoutInProgress = true;
 
-    localStorage.removeItem("rm_token");
-    localStorage.removeItem("rm_user");
-    window.location.href = "index.html";
+    const token = localStorage.getItem("rm_token");
+    let timeoutId = null;
+
+    try {
+        if (!DEVELOP_MODE && token) {
+            const timeoutPromise = new Promise((resolve) => {
+                timeoutId = setTimeout(resolve, 3000);
+            });
+
+            await Promise.race([
+                api("/api/logout", "POST"),
+                timeoutPromise,
+            ]);
+        }
+    } catch (error) {
+        console.warn("Logout API request failed:", error);
+    } finally {
+        if (timeoutId) clearTimeout(timeoutId);
+        currentUser = null;
+        accessInitializationPromise = null;
+        localStorage.removeItem("rm_token");
+        localStorage.removeItem("rm_user");
+        window.location.href = "index.html";
+    }
 }
 
 // =========================================================

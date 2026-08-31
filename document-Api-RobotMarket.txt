@@ -204,6 +204,49 @@ The forgot-password screen polls this endpoint. "reset" returns the user to
 the login screen; "waiting" keeps the countdown active.
 
 
+3.6 Logout [EXPECTED BY UI / BACKEND REQUIRED]
+
+  POST /api/logout
+  Authentication: Yes
+  Request body: None
+
+Request headers:
+
+  Authorization: Bearer <ACCESS_TOKEN>
+  Accept: application/json
+
+Successful response:
+
+  HTTP 200
+  {
+    "success": true,
+    "message": "Logged out successfully"
+  }
+
+Backend behavior:
+  - Revoke the current server-side session or add the current token identifier
+    to the revocation list so that it cannot be used again.
+  - Logout should be idempotent. Repeating the request for an already revoked
+    session may still return HTTP 200 with success: true.
+  - Do not require a JSON request body; the authenticated token identifies the
+    session that must be revoked.
+
+Invalid or expired token response:
+
+  HTTP 401
+  {
+    "success": false,
+    "code": "UNAUTHENTICATED",
+    "message": "Session is invalid or expired"
+  }
+
+Frontend behavior:
+  - The frontend waits up to three seconds for this request.
+  - Regardless of success, server error, timeout, or network failure, the
+    frontend clears rm_token and rm_user and redirects to index.html.
+  - Multiple simultaneous logout actions produce only one backend request.
+
+
 4. DASHBOARD
 ------------
 
@@ -670,6 +713,7 @@ initial authentication-message protocol before enabling this endpoint.
 --------------------
 
   POST   /api/login
+  POST   /api/logout
   POST   /send-otp
   POST   /verify-otp
   POST   /api/change-password
