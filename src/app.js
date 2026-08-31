@@ -758,6 +758,7 @@ function showToast(type = "info", title = "اعلان", message = "", timeout = 
 }
 
 function logout() {
+
     localStorage.removeItem("rm_token");
     localStorage.removeItem("rm_user");
     window.location.href = "index.html";
