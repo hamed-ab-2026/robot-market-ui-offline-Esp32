@@ -2345,14 +2345,14 @@
     </div>
 
     <div class="logo-RobotMarket-navbar-mobile">
-        <a href="#/">
+        <a href="#/" data-permission="dashboard.view">
             <img src="images/logo-RobotMarket.png"/>
         </a>
     </div>
 
     <div class="navbar-right">
         <div class="notif-badge-container-navbar-mobile">
-            <a href="#/notifications">
+            <a href="#/notifications" data-permission="notifications.view">
                 <i data-icon="bell"></i>
                 <span class="notif-badge hidden">0</span>
             </a>
@@ -2365,7 +2365,7 @@
             <span class="user-name">Hame...:)</span>
 
             <div class="user-dropdown">
-                <a onclick="rebootSystem()">ریبوت سیستم</a>
+                <a onclick="rebootSystem()" data-permission="system.reboot">ریبوت سیستم</a>
                 <a onclick="logout()" class="logout">خروج</a>
             </div>
         </div>
@@ -2379,7 +2379,7 @@
     </div>
 
     <div class="sidebar-header">
-        <a href="#/" class="logo-RobotMarket">
+        <a href="#/" class="logo-RobotMarket" data-permission="dashboard.view">
             <img src="images/logo-RobotMarket.png" alt="Robot Market"/>
         </a>
     </div>
@@ -2391,43 +2391,43 @@
             <span class="user-name">Hame...:)</span>
 
             <div class="user-dropdown">
-                <a onclick="rebootSystem()">ریبوت سیستم</a>
+                <a onclick="rebootSystem()" data-permission="system.reboot">ریبوت سیستم</a>
                 <a onclick="logout()" class="logout">خروج</a>
             </div>
         </div>
     </div>
 
     <div class="sidebar-nav">
-        <a href="#/" class="nav-item active">
+        <a href="#/" class="nav-item active" data-permission="dashboard.view">
             <div></div>
             <div>داشبورد</div>
         </a>
 
-        <a href="#/notifications" class="nav-item active">
+        <a href="#/notifications" class="nav-item active" data-permission="notifications.view">
             <div><i data-icon="bell"></i></div>
             <div>اعلانات</div>
         </a>
-        <a href="#/prices" class="nav-item">
+        <a href="#/prices" class="nav-item" data-permission="prices.view">
             <div><i data-icon="server"></i></div>
             <div>مدیریت قیمت</div>
         </a>
-        <a href="#/info" class="nav-item">
+        <a href="#/info" class="nav-item" data-permission="device_info.view">
             <div><i data-icon="logs"></i></div>
             <div>اطلاعات دستگاه</div>
         </a>
-        <a href="#/service-configuration" class="nav-item">
+        <a href="#/service-configuration" class="nav-item" data-permission="service_config.view">
             <div><i data-icon="cpu"></i></div>
             <div>پیکربندی سرویس ها</div>
         </a>
-        <a href="#/clients" class="nav-item">
+        <a href="#/clients" class="nav-item" data-permission="clients.view">
             <div><i data-icon="users"></i></div>
             <div>کاربران</div>
         </a>
-        <a href="#/balance" class="nav-item">
+        <a href="#/balance" class="nav-item" data-permission="balance.view">
             <div><i data-icon="pay"></i></div>
             <div>کیف پول</div>
         </a>
-        <a href="#/settings" class="nav-item">
+        <a href="#/settings" class="nav-item" data-permission="settings.view">
             <div><i data-icon="setting"></i></div>
             <div>تنظیمات</div>
         </a>

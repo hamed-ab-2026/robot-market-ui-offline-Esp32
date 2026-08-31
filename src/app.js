@@ -25,6 +25,135 @@ let renderFactoryData = null;
 
 let pendingPhysicalChange = null;
 
+// =========================================================
+//   ACCESS CONTROL / PERMISSIONS
+// =========================================================
+
+// نام تمام مجوزهایی که فرانت‌اند می‌شناسد. تصمیم نهایی دسترسی همیشه با بک‌اند است.
+const PERMISSIONS = Object.freeze({
+    DASHBOARD_VIEW: "dashboard.view",
+    DASHBOARD_REPORT_EXPORT: "dashboard.report.export",
+    DEVICE_VOLUME_UPDATE: "device.volume.update",
+    NOTIFICATIONS_VIEW: "notifications.view",
+    NOTIFICATIONS_MARK_READ: "notifications.mark_read",
+    PRICES_VIEW: "prices.view",
+    PRICES_UPDATE: "prices.update",
+    PRICES_RESOLVE_ERROR: "prices.resolve_error",
+    CLIENTS_VIEW: "clients.view",
+    CLIENTS_CREATE: "clients.create",
+    CLIENTS_UPDATE: "clients.update",
+    CLIENTS_DELETE: "clients.delete",
+    BALANCE_VIEW: "balance.view",
+    BALANCE_UPDATE: "balance.update",
+    BALANCE_EXPORT: "balance.export",
+    SETTINGS_VIEW: "settings.view",
+    SETTINGS_UPDATE: "settings.update",
+    WIFI_SCAN: "wifi.scan",
+    WIFI_CONNECT: "wifi.connect",
+    DEVICE_INFO_VIEW: "device_info.view",
+    SERVICE_CONFIG_VIEW: "service_config.view",
+    SERVICE_CONFIG_UPDATE: "service_config.update",
+    FACTORY_VIEW: "factory.view",
+    FACTORY_UPDATE: "factory.update",
+    FACTORY_RESET: "factory.reset",
+    LOGS_VIEW: "logs.view",
+    SYSTEM_REBOOT: "system.reboot",
+});
+
+// حالت توسعه همه مجوزها را دریافت می‌کند تا Mockها بدون محدودیت قابل تست باشند.
+const ALL_PERMISSIONS = Object.freeze(Object.values(PERMISSIONS));
+
+// هر Route فقط در صورت داشتن مجوز متناظر نمایش داده می‌شود.
+const ROUTE_PERMISSIONS = Object.freeze({
+    "#/": PERMISSIONS.DASHBOARD_VIEW,
+    "#/notifications": PERMISSIONS.NOTIFICATIONS_VIEW,
+    "#/prices": PERMISSIONS.PRICES_VIEW,
+    "#/clients": PERMISSIONS.CLIENTS_VIEW,
+    "#/balance": PERMISSIONS.BALANCE_VIEW,
+    "#/settings": PERMISSIONS.SETTINGS_VIEW,
+    "#/factory": PERMISSIONS.FACTORY_VIEW,
+    "#/logs": PERMISSIONS.LOGS_VIEW,
+    "#/info": PERMISSIONS.DEVICE_INFO_VIEW,
+    "#/service-configuration": PERMISSIONS.SERVICE_CONFIG_VIEW,
+});
+
+// اطلاعات کاربر فقط در حافظه نگهداری می‌شود و با هر بار Reload از بک‌اند تازه می‌شود.
+let currentUser = null;
+let accessInitializationPromise = null;
+
+// بررسی می‌کند کاربر فعلی یک مجوز مشخص را دارد یا خیر.
+function hasPermission(permission) {
+    if (DEVELOP_MODE) return true;
+    return currentUser?.permissions?.includes(permission) === true;
+}
+
+// پیش از عملیات حساس استفاده می‌شود و در صورت نداشتن مجوز اجرای تابع را متوقف می‌کند.
+function requirePermission(permission) {
+    if (hasPermission(permission)) return true;
+    showToast("error", "عدم دسترسی", "شما اجازه انجام این عملیات را ندارید.");
+    return false;
+}
+
+// المان‌های دارای data-permission را متناسب با دسترسی کاربر مخفی یا غیرفعال می‌کند.
+function applyPermissionVisibility(root = document) {
+    root.querySelectorAll?.("[data-permission]").forEach((element) => {
+        const allowed = hasPermission(element.dataset.permission);
+        const mode = element.dataset.permissionMode || "hide";
+
+        if (mode === "disable") {
+            // وضعیت disabled اولیه (مثلاً قفل‌شده توسط سرور) پس از مجازشدن حفظ می‌شود.
+            if (element.dataset.permissionOriginallyDisabled === undefined) {
+                element.dataset.permissionOriginallyDisabled = String(element.disabled);
+            }
+            const originallyDisabled = element.dataset.permissionOriginallyDisabled === "true";
+            element.disabled = !allowed || originallyDisabled;
+            element.setAttribute("aria-disabled", String(!allowed));
+            element.title = allowed ? "" : "شما اجازه انجام این عملیات را ندارید.";
+        } else {
+            element.classList.toggle("hidden", !allowed);
+        }
+    });
+}
+
+// Permissionهای کاربر را از بک‌اند می‌گیرد؛ در Production نبودن پاسخ معتبر خطا است.
+async function initializeAccessControl() {
+    if (DEVELOP_MODE) {
+        currentUser = {
+            id: "developer",
+            username: "Developer",
+            role: "developer",
+            permissions: [...ALL_PERMISSIONS],
+        };
+    } else {
+        const response = await api("/api/auth/me");
+        if (!response?.success || !response?.user || !Array.isArray(response.user.permissions)) {
+            throw new Error("AUTH_ME_INVALID_RESPONSE");
+        }
+        currentUser = {
+            ...response.user,
+            permissions: response.user.permissions.filter((permission) => (
+                typeof permission === "string"
+            )),
+        };
+    }
+
+    // نام نمایشی کاربر نیز از همان پاسخ معتبر بک‌اند گرفته می‌شود.
+    document.querySelectorAll(".user-name").forEach((element) => {
+        element.textContent = currentUser.username || currentUser.name || currentUser.role || "کاربر";
+    });
+
+    applyPermissionVisibility();
+    return currentUser;
+}
+
+// از ارسال چند درخواست هم‌زمان به /api/auth/me جلوگیری می‌کند.
+function ensureAccessInitialized() {
+    if (!accessInitializationPromise) {
+        accessInitializationPromise = initializeAccessControl();
+    }
+    return accessInitializationPromise;
+}
+
 if (DEVELOP_MODE) {
     showLoader(true)
     setTimeout(() => {
@@ -244,6 +373,8 @@ function toggleUserMenu(event) {
 }
 
 function rebootSystem() {
+    if (!requirePermission(PERMISSIONS.SYSTEM_REBOOT)) return;
+
     showModal({
         message: "آیا از ری‌استارت سیستم مطمئن هستید؟",
         type: "reboot",
@@ -638,6 +769,19 @@ function logout() {
 
 document.addEventListener("DOMContentLoaded", () => {
     renderIcons();
+
+    // محتوای صفحه‌ها داینامیک ساخته می‌شود؛ پس دسترسی المان‌های جدید نیز بررسی می‌شود.
+    const permissionObserver = new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+                if (node.nodeType === Node.ELEMENT_NODE) {
+                    if (node.matches?.("[data-permission]")) applyPermissionVisibility(node.parentElement);
+                    else applyPermissionVisibility(node);
+                }
+            });
+        });
+    });
+    permissionObserver.observe(app, {childList: true, subtree: true});
 })
 
 
@@ -650,18 +794,33 @@ window.addEventListener("hashchange", router);
 window.addEventListener("load", router);
 
 async function router() {
+    const token = localStorage.getItem("rm_token");
+
+    if (!token) {
+        window.location.href = "index.html";
+        return;
+    }
 
     await mockDataReady;
+
+    // قبل از نمایش هر صفحه باید Permissionهای کاربر از بک‌اند دریافت شده باشند.
+    try {
+        await ensureAccessInitialized();
+    } catch (error) {
+        console.error("initializeAccessControl error:", error);
+        renderError(403, "دریافت سطح دسترسی کاربر انجام نشد.");
+        return;
+    }
 
     const route = location.hash || "#/";
 
     if (route === lastRoute) return;
     lastRoute = route;
 
-    const token = localStorage.getItem("rm_token");
-
-    if (!token) {
-        window.location.href = "index.html";
+    // ورود مستقیم با URL نیز بدون Permission امکان‌پذیر نیست.
+    const requiredPermission = ROUTE_PERMISSIONS[route];
+    if (requiredPermission && !hasPermission(requiredPermission)) {
+        renderError(403, "شما اجازه مشاهده این بخش را ندارید.");
         return;
     }
 
@@ -1140,8 +1299,12 @@ const formatPaymentMethod = (method) => {
 
 async function renderDashboard() {
 
-    // for updateNotifBadge
-    await renderNotifications()
+    // Badge اعلان‌ها فقط در صورت داشتن مجوز مشاهده اعلان‌ها به‌روزرسانی می‌شود.
+    if (hasPermission(PERMISSIONS.NOTIFICATIONS_VIEW)) {
+        await renderNotifications();
+    } else {
+        updateNotifBadge(0);
+    }
 
     if (DEVELOP_MODE) {
         renderDashboardData = mock_data.dashboard;
@@ -1227,7 +1390,7 @@ async function renderDashboard() {
                               <div class="dashboard-date">
                                   <div class="time-jalali">${safe(time.jalali)}</div>
                                      <div class="top-bar">
-                                          <button class="btn-download" onclick='downloadReport(${JSON.stringify(data)})'>
+                                          <button class="btn-download" data-permission="dashboard.report.export" onclick='downloadReport(${JSON.stringify(data)})'>
                                               ${getIcon("download")}
                                               گزارش فروش
                                           </button>
@@ -1338,6 +1501,8 @@ async function renderDashboard() {
                                           step="25"
                                           value="${safe(data.speaker?.volume ?? 75)}"
                                           id="volumeSlider"
+                                          data-permission="device.volume.update"
+                                          data-permission-mode="disable"
                                           oninput="setVolume(this.value)"
                                       >
                                      <span id="volumeValue">${safe(data.speaker?.volume ?? 75)}%</span>
@@ -1529,6 +1694,8 @@ async function renderDashboard() {
 }
 
 function setVolume(val) {
+    if (!requirePermission(PERMISSIONS.DEVICE_VOLUME_UPDATE)) return;
+
     document.getElementById("volumeValue").innerText = val + "%";
 
     clearTimeout(volumeTimeout);
@@ -1591,6 +1758,7 @@ function startClock() {
 }
 
 function downloadReport(data) {
+    if (!requirePermission(PERMISSIONS.DASHBOARD_REPORT_EXPORT)) return;
 
     // const blob = new Blob(
     //     [JSON.stringify(data, null, 2)],
@@ -1640,7 +1808,7 @@ async function renderNotifications() {
                               ${getIcon("bell")}
                               <h2>اعلانات</h2>
                           </div>
-                              <button class="btn btn-soft" onclick="markNotificationsRead()">خوانده شد ✓</button>
+                              <button class="btn btn-soft" data-permission="notifications.mark_read" onclick="markNotificationsRead()">خوانده شد ✓</button>
                          </div>
 
                       </div>
@@ -1692,6 +1860,8 @@ async function renderNotifications() {
 }
 
 async function markNotificationsRead() {
+    if (!requirePermission(PERMISSIONS.NOTIFICATIONS_MARK_READ)) return;
+
     showLoader(true);
 
     try {
@@ -1766,7 +1936,7 @@ async function renderClients() {
                   </div>
 
                   <div class="page-action-bar">
-                     <button class="btn" onclick="addNewClient()">${getIcon("add")}افزودن کاربر جدید</button>
+                     <button class="btn" data-permission="clients.create" onclick="addNewClient()">${getIcon("add")}افزودن کاربر جدید</button>
                       <button class="btn btn-outline" onclick="location.hash='#/'">بازگشت</button>
                   </div>
                   `;
@@ -1819,6 +1989,8 @@ async function renderClients() {
                               <td class="col-settings">
                                   <button
                                       class="btn-manage"
+                                      data-permission="clients.update"
+                                      data-permission-mode="disable"
                                       onclick="openClientsAdvancedSettings('${key}')"
                                       ${isRowDisabled ? "disabled" : ""}
                                   >
@@ -1841,6 +2013,8 @@ function getClientApiStatus(isActive) {
 
 
 function openClientsAdvancedSettings(key) {
+    if (!requirePermission(PERMISSIONS.CLIENTS_UPDATE)) return;
+
     const rowData = renderClientsData[key];
     if (!rowData) return;
 
@@ -1899,6 +2073,7 @@ function openClientsAdvancedSettings(key) {
                           <button
                               type="button"
                               class="btn-danger"
+                              data-permission="clients.delete"
                               style="width: 100%"
                               onclick="deleteClient('${key}')"
                               ${rowDisabledByServer ? "disabled" : ""}
@@ -1961,6 +2136,8 @@ function openClientsAdvancedSettings(key) {
 }
 
 async function deleteClient(key) {
+    if (!requirePermission(PERMISSIONS.CLIENTS_DELETE)) return;
+
     const rowData = renderClientsData[key];
     if (!rowData) return;
 
@@ -2003,6 +2180,8 @@ async function deleteClient(key) {
 }
 
 async function addNewClient() {
+    if (!requirePermission(PERMISSIONS.CLIENTS_CREATE)) return;
+
     const modalBody = `
                   <div class="adv-modal">
                       <div class="modal-product-icon">
@@ -2144,17 +2323,17 @@ async function renderBalance() {
 
                             <div class="page-action-bar">
                                   <div class="action-group">
-                                      <input type="number" step="1000000" id="globalBalanceInput" placeholder="موجودی برای همه">
-                                      <button class="btn" onclick="applyBalanceToAll(${clients.length})">
+                                      <input type="number" step="1000000" id="globalBalanceInput" data-permission="balance.update" data-permission-mode="disable" placeholder="موجودی برای همه">
+                                      <button class="btn" data-permission="balance.update" onclick="applyBalanceToAll(${clients.length})">
                                           اعمال به همه
                                       </button>
                                   </div>
 
                                   <div class="action-group">
-                                      <button class="btn" onclick="confirmSave(${clients.length})">
+                                      <button class="btn" data-permission="balance.update" onclick="confirmSave(${clients.length})">
                                           ذخیره تغییرات
                                       </button>
-                                      <button class="btn btn-outline" onclick="downloadBalanceCSV()">
+                                      <button class="btn btn-outline" data-permission="balance.export" onclick="downloadBalanceCSV()">
                                           دانلود CSV
                                       </button>
                                   </div>
@@ -2164,6 +2343,8 @@ async function renderBalance() {
 }
 
 function applyBalanceToAll(count) {
+    if (!requirePermission(PERMISSIONS.BALANCE_UPDATE)) return;
+
     const value = document.getElementById("globalBalanceInput").value;
 
     if (value === "") {
@@ -2179,6 +2360,8 @@ function applyBalanceToAll(count) {
 }
 
 async function submitAllBalances(count) {
+    if (!requirePermission(PERMISSIONS.BALANCE_UPDATE)) return false;
+
     const updates = [];
 
     for (let i = 0; i < count; i++) {
@@ -2220,6 +2403,8 @@ function confirmSave(count) {
 }
 
 async function downloadBalanceCSV() {
+    if (!requirePermission(PERMISSIONS.BALANCE_EXPORT)) return;
+
     showLoader(true);
 
     try {
@@ -2297,10 +2482,10 @@ async function renderSettings() {
                                               <div class="section-title">
                                                   <span>انتخاب شبکه WiFi</span>
                                                   <div style="display: flex; gap: 10px">
-                                                      <button type="button" class="btn btn-outline" style="width: 40px" onClick="addWifi()">
+                                                      <button type="button" class="btn btn-outline" data-permission="wifi.connect" style="width: 40px" onClick="addWifi()">
                                                           ${getIcon("add")}
                                                       </button>
-                                                       <button type="button" class="btn btn-outline" style="width: 40px" onClick="loadWifiList()">
+                                                       <button type="button" class="btn btn-outline" data-permission="wifi.scan" style="width: 40px" onClick="loadWifiList()">
                                                           ${getIcon("refresh")}
                                                       </button>
                                                   </div>
@@ -2449,7 +2634,7 @@ async function renderSettings() {
                               </div>
 
                                           <!-- رخدادها -->
-                              <div class="drawer" onclick="handleNavigation('#/logs')">
+                              <div class="drawer" data-permission="logs.view" onclick="handleNavigation('#/logs')">
                                   <div class="drawer-summary">
                                       <div style="display: flex; align-items: center; justify-content: start; gap: 10px; cursor: pointer;">
                                           ${getIcon("logs")}
@@ -2459,7 +2644,7 @@ async function renderSettings() {
                               </div>
 
                               <!-- تنظیمات کارخانه -->
-                              <div class="drawer" onclick="handleNavigation('#/factory')">
+                              <div class="drawer" data-permission="factory.view" onclick="handleNavigation('#/factory')">
                                   <div class="drawer-summary">
                                       <div style="display: flex; align-items: center; justify-content: start; gap: 10px; cursor: pointer; color: var(--danger);">
                                           ${getIcon("refresh")}
@@ -2473,7 +2658,7 @@ async function renderSettings() {
                       </div>
 
                         <div class="page-action-bar">
-                              <button type="submit" form="settingsForm" class="btn">ذخیره تمامی تغییرات</button>
+                              <button type="submit" form="settingsForm" class="btn" data-permission="settings.update">ذخیره تمامی تغییرات</button>
                               <button type="button" class="btn btn-outline" onclick="handleNavigation('#/')">بازگشت</button>
                         </div>
 
@@ -2492,7 +2677,8 @@ async function renderSettings() {
         });
     });
 
-    await loadWifiList();
+    // اسکن خودکار فقط برای کاربری انجام می‌شود که مجوز مشاهده شبکه‌ها را دارد.
+    if (hasPermission(PERMISSIONS.WIFI_SCAN)) await loadWifiList();
 }
 
 function saveInitialFormState() {
@@ -2545,6 +2731,8 @@ function validateSettingsForm(form) {
 }
 
 async function submitSettingsAPI(form) {
+    if (!requirePermission(PERMISSIONS.SETTINGS_UPDATE)) return false;
+
     if (!validateSettingsForm(form)) return false;
 
     showLoader(true);
@@ -2590,6 +2778,10 @@ async function saveSettings(e) {
 }
 
 function handleNavigation(targetPath) {
+    // مسیرهای داخلی تنظیمات نیز پیش از تغییر Hash بررسی می‌شوند.
+    const requiredPermission = ROUTE_PERMISSIONS[targetPath];
+    if (requiredPermission && !requirePermission(requiredPermission)) return;
+
     const form = document.getElementById("settingsForm");
 
     if (hasFormChanged()) {
@@ -2636,6 +2828,8 @@ function getSignalBars(rssi) {
 }
 
 function addWifi() {
+    if (!requirePermission(PERMISSIONS.WIFI_CONNECT)) return;
+
     showModal({
         message: `نام و رمز وای فای Hidden را وارد کنید `,
 
@@ -2709,6 +2903,8 @@ function addWifi() {
 }
 
 async function loadWifiList() {
+    if (!requirePermission(PERMISSIONS.WIFI_SCAN)) return;
+
     const container = document.getElementById("wifiList");
     if (!container) return;
     if (wifiScanInProgress) return;
@@ -2775,6 +2971,8 @@ async function loadWifiList() {
 }
 
 function selectWifi(ssid) {
+    if (!requirePermission(PERMISSIONS.WIFI_CONNECT)) return;
+
     showModal({
         message: `رمز شبکه <b>${ssid}</b> را وارد کنید`,
 
@@ -2941,7 +3139,7 @@ async function renderPrices() {
                           </div>
 
                           <div class="page-action-bar">
-                              <button class="btn" onclick="savePrices('submitBtnClicked')">ذخیره قیمت‌ها</button>
+                              <button class="btn" data-permission="prices.update" onclick="savePrices('submitBtnClicked')">ذخیره قیمت‌ها</button>
                               <button class="btn btn-outline" onclick="location.hash='#/'">بازگشت</button>
                           </div>
                           `;
@@ -2968,11 +3166,13 @@ async function renderPrices() {
                     </span>
                 </td>
                 <td class="col-name">
-                    <input onblur="saveFieldPrice(this)" class="input-text" type="text" value="${row.name || "---"}" data-key="${key}" data-field="name" ${isRowDisabled ? "disabled" : ""}>
+                    <input onblur="saveFieldPrice(this)" data-permission="prices.update" data-permission-mode="disable" class="input-text" type="text" value="${row.name || "---"}" data-key="${key}" data-field="name" ${isRowDisabled ? "disabled" : ""}>
                 </td>
                 <td class="col-qty">
                     <input
                         onblur="saveFieldPrice(this)"
+                        data-permission="prices.update"
+                        data-permission-mode="disable"
                         class="input-number ${isLowStock ? 'stock-warning' : ''}"
                         type="number"
                         value="${row.quantity || 0}"
@@ -2984,11 +3184,11 @@ async function renderPrices() {
                 </td>
 
                 <td class="col-price">
-                    <input class="input-number" onblur="saveFieldPrice(this)" type="number" value="${row.price || 0}" data-key="${key}" data-field="price" step="1000" min="0" ${isRowDisabled ? "disabled" : ""}>
+                    <input class="input-number" onblur="saveFieldPrice(this)" data-permission="prices.update" data-permission-mode="disable" type="number" value="${row.price || 0}" data-key="${key}" data-field="price" step="1000" min="0" ${isRowDisabled ? "disabled" : ""}>
                 </td>
 
                 <td class="col-settings">
-                    <button class="btn-manage" onclick="openAdvancedSettings('${key}')" ${isRowDisabled ? "disabled" : ""}>
+                    <button class="btn-manage" data-permission="prices.update" data-permission-mode="disable" onclick="openAdvancedSettings('${key}')" ${isRowDisabled ? "disabled" : ""}>
                         ${hasError ? getIcon("warning") : getIcon("setting")}
                     </button>
                 </td>
@@ -2999,6 +3199,8 @@ async function renderPrices() {
 }
 
 function openAdvancedSettings(key) {
+    if (!requirePermission(PERMISSIONS.PRICES_UPDATE)) return;
+
     const rowData = renderPricesData[key];
 
     const rowName = rowData.name || "";
@@ -3181,6 +3383,8 @@ function changeQty(step) {
 }
 
 function resolveChannelError(key) {
+    if (!requirePermission(PERMISSIONS.PRICES_RESOLVE_ERROR)) return;
+
     if (resolvingChannelError) return;
 
     const row = renderPricesData[key];
@@ -3305,6 +3509,7 @@ function buildAdvancedHint({
                           <div class="advanced-hint-actions" style="margin-top:10px;">
                               <button
                                   class="btn btn-danger"
+                                  data-permission="prices.resolve_error"
                                   type="button"
                                   onclick="resolveChannelError('${key}')"
                               >
@@ -3554,7 +3759,7 @@ async function renderServiceConfiguration() {
         renderServiceConfigurationData = mock_data.service_configuration
     } else {
         showLoader(true);
-        renderServiceConfiguration = await api('/api/service/config') || {};
+        renderServiceConfigurationData = await api('/api/service/config') || {};
         showLoader(false);
     }
 
@@ -3637,6 +3842,7 @@ async function renderServiceConfiguration() {
 }
 
 async function savePrices(type = '') {
+    if (!requirePermission(PERMISSIONS.PRICES_UPDATE)) return;
 
     const inputs = document.querySelectorAll("#priceTable input");
 
@@ -3666,10 +3872,13 @@ async function savePrices(type = '') {
 }
 
 async function savePriceItemAdvanced(id, payload) {
+    if (!requirePermission(PERMISSIONS.PRICES_UPDATE)) return {};
     return api(`/api/prices/${id}`, "PUT", payload);
 }
 
 async function saveFieldPrice(input) {
+    if (!requirePermission(PERMISSIONS.PRICES_UPDATE)) return;
+
     const key = input.dataset.key;
     const field = input.dataset.field;
     const rowData = renderPricesData[key];
@@ -3830,8 +4039,8 @@ async function renderFactory() {
 
 
                       <div class="page-action-bar" >
-                      <button type="button" class="btn" onclick="saveFactorySettings()"> ذخیره تنظیمات</button>
-                      <button type="button" class="btn btn-outline" style="border-color:var(--danger); color:var(--danger);" onclick="resetFactoryToDefault()">
+                      <button type="button" class="btn" data-permission="factory.update" onclick="saveFactorySettings()"> ذخیره تنظیمات</button>
+                      <button type="button" class="btn btn-outline" data-permission="factory.reset" style="border-color:var(--danger); color:var(--danger);" onclick="resetFactoryToDefault()">
                       ریست فکتوری
                       </button>
                       <button class="btn btn-outline" onclick="location.href='#/settings'">بازگشت</button>
@@ -3861,6 +4070,8 @@ function generateFactoryCode() {
 }
 
 async function saveFactorySettings() {
+    if (!requirePermission(PERMISSIONS.FACTORY_UPDATE)) return;
+
     const form = document.getElementById("factoryForm");
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
@@ -3888,6 +4099,8 @@ async function saveFactorySettings() {
 }
 
 async function resetFactoryToDefault() {
+    if (!requirePermission(PERMISSIONS.FACTORY_RESET)) return;
+
     showModal({
         message:
             "آیا مطمئن هستید که می‌خواهید تمام تنظیمات را به حالت اول برگردانید؟ این عمل غیرقابل بازگشت است!",
@@ -3976,10 +4189,10 @@ function renderLogs() {
 
 }
 
-function renderError(code) {
+function renderError(code, message = "صفحه مورد نظر پیدا نشد!") {
     app.innerHTML = `
                   <div class="card" style="text-align:center"><h1>${code}
-                  </h1><p>صفحه مورد نظر پیدا نشد!</p></div>
+                  </h1><p>${message}</p></div>
                       `;
 }
 
