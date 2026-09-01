@@ -1,7 +1,10 @@
 node_modules
 .next
 dist
-.env*.local
+# Environment files
+.env
+.env.*
+!.env.example
 .DS_Store
 out
 build

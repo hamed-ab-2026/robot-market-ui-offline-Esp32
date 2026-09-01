@@ -97,6 +97,14 @@ function requirePermission(permission) {
 
 // المان‌های دارای data-permission را متناسب با دسترسی کاربر مخفی یا غیرفعال می‌کند.
 function applyPermissionVisibility(root = document) {
+    // تمام دکمه‌ها و لینک‌های Route براساس جدول مرکزی Routeها مخفی می‌شوند.
+    root.querySelectorAll?.('a[href^="#/"]').forEach((link) => {
+        const routePermission = ROUTE_PERMISSIONS[link.getAttribute("href")];
+        if (routePermission) {
+            link.classList.toggle("hidden", !hasPermission(routePermission));
+        }
+    });
+
     root.querySelectorAll?.("[data-permission]").forEach((element) => {
         const allowed = hasPermission(element.dataset.permission);
         const mode = element.dataset.permissionMode || "hide";
@@ -144,6 +152,8 @@ async function initializeAccessControl() {
     });
 
     applyPermissionVisibility();
+    // بعد از مشخص‌شدن دسترسی‌ها فقط المان‌های مجاز اجازه نمایش دارند.
+    document.body.classList.remove("access-pending");
     return currentUser;
 }
 

@@ -154,6 +154,11 @@
             display: none !important;
         }
 
+        /* تا قبل از دریافت Permissionها هیچ تب محافظت‌شده‌ای نمایش داده نمی‌شود. */
+        body.access-pending [data-permission] {
+            display: none !important;
+        }
+
         /* =========================================================
              COMPONENT: navbar (mobile top bar + desktop sidebar)
           ========================================================= */
@@ -2325,7 +2330,7 @@
         }
     </style>
 </head>
-<body>
+<body class="access-pending">
 <!-- Spinner -->
 <div id="loader" class="hidden">
     <div class="spinner">
