@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <link rel="icon" type="image/x-icon" href="/images/favicon.ico"/>
+
+    <title>پنل مدیریت روبات مارکت</title>
+
+    <!-- Theme / Status bar -->
+    <meta name="theme-color" content="#00A693"/>
+    <meta name="mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-capable" content="yes"/>
+    <meta name="apple-mobile-web-app-status-bar-style" content="default"/>
+</head>
+<body class="access-pending">
+<!-- Spinner -->
+<div id="loader" class="hidden">
+    <div class="spinner">
+        <img src="/images/favicon.ico" alt="loading"/>
+        <div class="dots">
+            <span></span>
+            <span></span>
+            <span></span>
+        </div>
+    </div>
+</div>
+
+<!-- start -- For Mobile Mode -->
+<div class="mobile-navbar">
+    <div id="menuToggle" class="menu-toggle" onclick="toggleMenu()">
+        <i data-icon="menu" data-size="28"></i>
+    </div>
+
+    <div class="logo-RobotMarket-navbar-mobile">
+        <a href="#/" data-permission="dashboard.view">
+            <img src="images/logo-RobotMarket.png"/>
+        </a>
+    </div>
+
+    <div class="navbar-right">
+        <div class="notif-badge-container-navbar-mobile">
+            <a href="#/notifications" data-permission="notifications.view">
+                <i data-icon="bell"></i>
+                <span class="notif-badge hidden">0</span>
+            </a>
+        </div>
+
+        <!-- USER -->
+        <div class="user-menu-mobile" onclick="toggleUserMenu(event)">
+            <img class="user-avatar" src="images/favicon.ico"/>
+
+            <span class="user-name">Hame...:)</span>
+
+            <div class="user-dropdown">
+                <a onclick="rebootSystem()" data-permission="system.reboot">ریبوت سیستم</a>
+                <a onclick="logout()" class="logout">خروج</a>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- End -- For Mobile Mode -->
+
+<nav id="mainNav" class="navbar">
+    <div class="mobile-close" onclick="toggleMenu()">
+        <i data-icon="close"></i>
+    </div>
+
+    <div class="sidebar-header">
+        <a href="#/" class="logo-RobotMarket" data-permission="dashboard.view">
+            <img src="images/logo-RobotMarket.png" alt="Robot Market"/>
+        </a>
+    </div>
+
+    <div class="sidebar-footer">
+        <div class="user-menu-desktop" onclick="toggleUserMenu(event)">
+            <img class="user-avatar" src="images/favicon.ico"/>
+
+            <span class="user-name">Hame...:)</span>
+
+            <div class="user-dropdown">
+                <a onclick="rebootSystem()" data-permission="system.reboot">ریبوت سیستم</a>
+                <a onclick="logout()" class="logout">خروج</a>
+            </div>
+        </div>
+    </div>
+
+    <div class="sidebar-nav">
+        <a href="#/" class="nav-item active" data-permission="dashboard.view">
+            <div></div>
+            <div>داشبورد</div>
+        </a>
+
+        <a href="#/notifications" class="nav-item active" data-permission="notifications.view">
+            <div><i data-icon="bell"></i></div>
+            <div>اعلانات</div>
+        </a>
+        <a href="#/prices" class="nav-item" data-permission="prices.view">
+            <div><i data-icon="server"></i></div>
+            <div>مدیریت قیمت</div>
+        </a>
+        <a href="#/info" class="nav-item" data-permission="device_info.view">
+            <div><i data-icon="logs"></i></div>
+            <div>اطلاعات دستگاه</div>
+        </a>
+        <a href="#/service-configuration" class="nav-item" data-permission="service_config.view">
+            <div><i data-icon="cpu"></i></div>
+            <div>پیکربندی سرویس ها</div>
+        </a>
+        <a href="#/clients" class="nav-item" data-permission="clients.view">
+            <div><i data-icon="users"></i></div>
+            <div>کاربران</div>
+        </a>
+        <a href="#/balance" class="nav-item" data-permission="balance.view">
+            <div><i data-icon="pay"></i></div>
+            <div>کیف پول</div>
+        </a>
+        <a href="#/settings" class="nav-item" data-permission="settings.view">
+            <div><i data-icon="setting"></i></div>
+            <div>تنظیمات</div>
+        </a>
+
+        <a
+                href="#/dev"
+                style="background-color: red; color: white"
+                class="nav-item hidden"
+        >
+            <div><i data-icon="debug"></i></div>
+            <div>dev_Mode</div>
+        </a>
+    </div>
+</nav>
+
+<div id="overlay" onclick="toggleMenu()"></div>
+
+<div class="container" id="app"></div>
+
+<script type="module" src="/src/app.js"></script>
+</body>
+</html>
