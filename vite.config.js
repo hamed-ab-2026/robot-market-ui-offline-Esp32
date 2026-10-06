@@ -1,5 +1,6 @@
 import {defineConfig} from "vite";
 import {resolve} from "node:path";
+import tailwindcss from "@tailwindcss/vite";
 
 function minifyInlineCss(html) {
     return html.replace(/<style>([\s\S]*?)<\/style>/gi, (_, css) => {
@@ -29,7 +30,7 @@ const minifyHtmlPlugin = {
 };
 
 export default defineConfig({
-    plugins: [minifyHtmlPlugin],
+    plugins: [tailwindcss(), minifyHtmlPlugin],
     server: {
         host: "0.0.0.0",
         port: 5173,

@@ -1,11 +1,9 @@
-node_modules
-.next
-dist
-# Environment files
+node_modules/
+dist/
+test-results/
+playwright-report/
+coverage/
 .env
 .env.*
-!.env.example
-.DS_Store
-out
-build
+.idea/
 *.log

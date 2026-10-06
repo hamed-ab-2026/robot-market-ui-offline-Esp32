@@ -1,3 +1,74 @@
+import "./styles/app.css";
+import {requestWithAuth} from "./shared/api/httpClient.js";
+import {ALL_PERMISSIONS, PERMISSIONS, ROUTE_PERMISSIONS, canAccessPermission} from "./features/access/permissions.js";
+import {formatApiDateTime, formatNumber, safeText as safe} from "./shared/formatters/displayFormatters.js";
+import {mapDashboardData} from "./features/dashboard/dashboardData.js";
+import {createSalesTrendData, renderSalesTrendChart} from "./features/dashboard/salesTrend.js";
+import {bindDashboardPageEvents, renderDashboardPageShell} from "./features/dashboard/dashboardPage.js";
+import {clearAuthSession, getAuthToken} from "./features/auth/sessionStorage.js";
+import {resolveRoute, runRouteHandler} from "./app/router.helpers.js";
+import {showModal as showSharedModal} from "./components/ui/modal.js";
+import {bindDrawerPageEvents} from "./components/ui/pageEvents.js";
+import {
+    bindFactoryPageEvents,
+    createFactoryPayload,
+    renderFactoryPageShell,
+    updateCertificateField,
+    updateManualIpFields,
+} from "./features/factory/factoryPage.js";
+import {bindDevelopPageEvents} from "./features/develop/developPage.js";
+import {renderLogsPageShell} from "./features/logs/logsPage.js";
+import {renderInfoPageShell} from "./features/info/infoPage.js";
+import {renderServiceConfigurationPageShell} from "./features/serviceConfiguration/serviceConfigurationPage.js";
+import {
+    CLIENT_MESSAGES,
+    getClientApiStatus,
+    isClientActive,
+    validateClientForm,
+} from "./features/clients/clientRules.js";
+import {createBalanceUpdate, isCsvBlob, validateGlobalBalance} from "./features/balance/balanceRules.js";
+import {bindBalancePageEvents, renderBalancePageShell} from "./features/balance/balancePage.js";
+import {
+    countUnreadNotifications,
+    getNotificationsFromPayload,
+} from "./features/notifications/notificationRules.js";
+import {
+    bindNotificationsPageEvents,
+    renderNotificationItems,
+    renderNotificationsPageShell,
+} from "./features/notifications/notificationsPage.js";
+import {
+    applyQuantityStep,
+    createAdvancedPricePayload,
+    getAdvancedHintItems,
+} from "./features/prices/priceRules.js";
+import {
+    getWifiSignalLevel,
+    serializeSettingsForm,
+    sortWifiNetworksBySignal,
+    validateApPasswordConfirmation,
+} from "./features/settings/settingsRules.js";
+import {bindSettingsPageEvents, bindWifiListEvents, renderSettingsPageShell} from "./features/settings/settingsPage.js";
+import {
+    bindWifiModalEvents,
+    renderHiddenWifiModalExtra,
+    renderWifiPasswordModalExtra,
+} from "./features/settings/wifiModals.js";
+import {bindPriceTableEvents, renderPriceTableRows} from "./features/prices/priceTable.js";
+import {bindClientTableEvents, renderClientTableRows} from "./features/clients/clientTable.js";
+import {bindClientPageEvents} from "./features/clients/clientPage.js";
+import {bindPricePageEvents, renderPricePageShell} from "./features/prices/pricePage.js";
+import {
+    bindPriceAdvancedModalEvents,
+    buildAdvancedHint,
+    renderPriceAdvancedModalBody,
+} from "./features/prices/priceAdvancedModal.js";
+import {
+    bindClientAdvancedModalEvents,
+    renderClientAdvancedModalBody,
+    renderClientCreateModalBody,
+} from "./features/clients/clientAdvancedModal.js";
+
 //-------- Global Variables ------------
 
 const DEVELOP_MODE = import.meta.env.VITE_DEV_MODE === "true";
@@ -30,62 +101,16 @@ let pendingPhysicalChange = null;
 //   ACCESS CONTROL / PERMISSIONS
 // =========================================================
 
-// نام تمام مجوزهایی که فرانت‌اند می‌شناسد. تصمیم نهایی دسترسی همیشه با بک‌اند است.
-const PERMISSIONS = Object.freeze({
-    DASHBOARD_VIEW: "dashboard.view",
-    DASHBOARD_REPORT_EXPORT: "dashboard.report.export",
-    DEVICE_VOLUME_UPDATE: "device.volume.update",
-    NOTIFICATIONS_VIEW: "notifications.view",
-    NOTIFICATIONS_MARK_READ: "notifications.mark_read",
-    PRICES_VIEW: "prices.view",
-    PRICES_UPDATE: "prices.update",
-    PRICES_RESOLVE_ERROR: "prices.resolve_error",
-    CLIENTS_VIEW: "clients.view",
-    CLIENTS_CREATE: "clients.create",
-    CLIENTS_UPDATE: "clients.update",
-    CLIENTS_DELETE: "clients.delete",
-    BALANCE_VIEW: "balance.view",
-    BALANCE_UPDATE: "balance.update",
-    BALANCE_EXPORT: "balance.export",
-    SETTINGS_VIEW: "settings.view",
-    SETTINGS_UPDATE: "settings.update",
-    WIFI_SCAN: "wifi.scan",
-    WIFI_CONNECT: "wifi.connect",
-    DEVICE_INFO_VIEW: "device_info.view",
-    SERVICE_CONFIG_VIEW: "service_config.view",
-    SERVICE_CONFIG_UPDATE: "service_config.update",
-    FACTORY_VIEW: "factory.view",
-    FACTORY_UPDATE: "factory.update",
-    FACTORY_RESET: "factory.reset",
-    LOGS_VIEW: "logs.view",
-    SYSTEM_REBOOT: "system.reboot",
-});
-
-// حالت توسعه همه مجوزها را دریافت می‌کند تا Mockها بدون محدودیت قابل تست باشند.
-const ALL_PERMISSIONS = Object.freeze(Object.values(PERMISSIONS));
-
-// هر Route فقط در صورت داشتن مجوز متناظر نمایش داده می‌شود.
-const ROUTE_PERMISSIONS = Object.freeze({
-    "#/": PERMISSIONS.DASHBOARD_VIEW,
-    "#/notifications": PERMISSIONS.NOTIFICATIONS_VIEW,
-    "#/prices": PERMISSIONS.PRICES_VIEW,
-    "#/clients": PERMISSIONS.CLIENTS_VIEW,
-    "#/balance": PERMISSIONS.BALANCE_VIEW,
-    "#/settings": PERMISSIONS.SETTINGS_VIEW,
-    "#/factory": PERMISSIONS.FACTORY_VIEW,
-    "#/logs": PERMISSIONS.LOGS_VIEW,
-    "#/info": PERMISSIONS.DEVICE_INFO_VIEW,
-    "#/service-configuration": PERMISSIONS.SERVICE_CONFIG_VIEW,
-});
-
 // اطلاعات کاربر فقط در حافظه نگهداری می‌شود و با هر بار Reload از بک‌اند تازه می‌شود.
 let currentUser = null;
 let accessInitializationPromise = null;
 
-// بررسی می‌کند کاربر فعلی یک مجوز مشخص را دارد یا خیر.
+/**
+ * Checks whether the current user can perform an action. Development mode is
+ * intentionally open so mock data stays easy to explore.
+ */
 function hasPermission(permission) {
-    if (DEVELOP_MODE) return true;
-    return currentUser?.permissions?.includes(permission) === true;
+    return canAccessPermission({developMode: DEVELOP_MODE, user: currentUser, permission});
 }
 
 // پیش از عملیات حساس استفاده می‌شود و در صورت نداشتن مجوز اجرای تابع را متوقف می‌کند.
@@ -458,80 +483,8 @@ function toggleDrawer(id) {
  * @param {string} [params.extraHtml=""] - محتوای HTML اضافی که بین پیام و دکمه‌ها درج می‌شود (مثلاً فرم یا توضیحات بیشتر).
  * @returns {void}
  */
-function showModal({
-                       message = "",
-                       type = "info",
-                       onConfirm = null,
-                       onCancel = null,
-                       showConfirm = true,
-                       extraHtml = "",
-                   }) {
-    const types = {
-        info: {color: "var(--info)", icon: getIcon("info")},
-        noType: {color: "", icon: ""},
-        success: {color: "var(--success)", icon: getIcon("success")},
-        warning: {color: "var(--warning)", icon: getIcon("warning")},
-        danger: {color: "var(--danger)", icon: getIcon("danger")},
-        reboot: {color: "var(--info)", icon: getIcon("refresh")},
-    };
-
-    const t = types[type] || types.info;
-
-    const modal = document.createElement("div");
-    modal.className = "app-modal";
-
-    modal.innerHTML = `
-              <div class="app-modal-box">
-
-                  <div class="app-modal-header" style="color:${t.color}">
-                      <span class="app-modal-icon">${t.icon}</span>
-                  </div>
-
-                  <div class="app-modal-message">
-                      ${message}
-                  </div>
-
-                  ${extraHtml}
-
-                  ${
-        showConfirm
-            ? `
-                      <div class="app-modal-actions">
-                          <button class="btn modal-confirm"> تایید</button>
-                          <button class="btn btn-outline modal-cancel">لغو</button>
-                      </div>
-                      `
-            : ""
-    }
-
-              </div>
-              `;
-
-    document.body.appendChild(modal);
-
-    if (showConfirm) {
-        const cancelBtn = modal.querySelector(".modal-cancel");
-        const confirmBtn = modal.querySelector(".modal-confirm");
-
-        cancelBtn.onclick = () => {
-            modal.remove();
-            if (onCancel) onCancel();
-        };
-
-        confirmBtn.onclick = () => {
-            if (onConfirm) onConfirm(modal);
-        };
-    }
-}
-
-// -- Generic label/value row renderer (info / service-configuration pages) --
-function infoItem(label, value) {
-    return `
-                      <p>
-                      <strong>${label}:</strong>
-                      <span>${value ?? " - "}</span>
-                      </p>
-                      `;
+function showModal(options) {
+    return showSharedModal({...options, getIcon});
 }
 
 // -- Router support --
@@ -558,88 +511,28 @@ function updateNotifBadge(count) {
 // --- Helper Functions ---
 
 async function api(url, method = "GET", data = null) {
-
-    const normalizedMethod = String(method || "GET").toUpperCase();
-
-    const options = {
-        method: normalizedMethod,
-        headers: {
-            Authorization: "Bearer " + localStorage.getItem("rm_token"),
-        },
-    };
-    if (data) {
-        options.headers["Content-Type"] = "application/json";
-        options.body = JSON.stringify(data);
-    }
-    try {
-        const res = await fetch(url, options);
-
-        if (res.status === 401) {
-            showToast(
-                "error",
-                `401`,
-                'دسترسی غیر مجاز ❌',
-            );
+    return requestWithAuth(url, {
+        method,
+        data,
+        token: getAuthToken(),
+        onUnauthorized: () => {
+            showToast("error", "401", "دسترسی غیر مجاز ❌");
             setTimeout(() => {
                 logout();
-            }, 1000)
-
-            return;
-        }
-
-        if (res.status === 403) {
-            let errorMessage = "شما اجازه انجام این عملیات را ندارید.";
-            try {
-                const errorBody = await res.json();
-                errorMessage = errorBody?.message || errorMessage;
-            } catch {
-                // پاسخ 403 ممکن است بدنه JSON نداشته باشد.
-            }
+            }, 1000);
+        },
+        onForbidden: (errorMessage) => {
             showToast("error", "عدم دسترسی", errorMessage);
-            return {};
-        }
+        },
+        onError: (error) => {
+            if (error.isServerError) {
+                showToast("error", `${error.statusCode}`, error.message);
+                return;
+            }
 
-        if (res.status && res.status >= 500 && res.status < 600) {
-            const err = new Error(`خطای سرور. لطفاً کمی بعد دوباره تلاش کنید.`);
-            err.isServerError = true;
-            err.statusCode = res.status
-            throw err;
-        }
-
-        if (!res.ok) {
-            throw new Error(`API_ERROR_${res.status}`);
-        }
-
-        if (res.status === 204) return {success: true};
-
-        const contentType = res.headers.get("content-type") || "";
-
-        if (contentType.includes("application/json")) {
-            return await res.json();
-        }
-
-        if (contentType.toLowerCase().includes("text/csv")) {
-            return await res.blob();
-        }
-
-        return await res.text();
-
-    } catch (e) {
-        if (e.isServerError) {
-            showToast(
-                "error",
-                `${e.statusCode}`,
-                e.message,
-            );
-        } else {
-            showToast(
-                "error",
-                "خطا",
-                e.message || 'خطایی رخ داد',
-            );
-        }
-        return {};
-    }
+            showToast("error", "خطا", error.message || "خطایی رخ داد");
+        },
+    });
 }
 
 /**
@@ -772,7 +665,7 @@ async function logout() {
     if (logoutInProgress) return;
     logoutInProgress = true;
 
-    const token = localStorage.getItem("rm_token");
+    const token = getAuthToken();
     let timeoutId = null;
 
     try {
@@ -792,8 +685,7 @@ async function logout() {
         if (timeoutId) clearTimeout(timeoutId);
         currentUser = null;
         accessInitializationPromise = null;
-        localStorage.removeItem("rm_token");
-        localStorage.removeItem("rm_user");
+        clearAuthSession();
         window.location.href = "index.html";
     }
 }
@@ -829,7 +721,7 @@ window.addEventListener("hashchange", router);
 window.addEventListener("load", router);
 
 async function router() {
-    const token = localStorage.getItem("rm_token");
+    const token = getAuthToken();
 
     if (!token) {
         window.location.href = "index.html";
@@ -847,10 +739,15 @@ async function router() {
         return;
     }
 
-    const route = location.hash || "#/";
+    const {route, status} = resolveRoute(location.hash, {developMode: DEVELOP_MODE});
 
     if (route === lastRoute) return;
     lastRoute = route;
+
+    if (status === "not-found") {
+        renderError(404);
+        return;
+    }
 
     // ورود مستقیم با URL نیز بدون Permission امکان‌پذیر نیست.
     const requiredPermission = ROUTE_PERMISSIONS[route];
@@ -867,470 +764,28 @@ async function router() {
     }
 
 
-    switch (route) {
-        case "#/":
-            await renderDashboard();
-            break;
-        case "#/notifications":
-            await renderNotifications();
-            break;
-        case "#/prices":
-            await renderPrices();
-            break;
-        case "#/clients":
-            await renderClients();
-            break;
-        case "#/balance":
-            await renderBalance();
-            break;
-        case "#/settings":
-            await renderSettings();
-            break;
-        case "#/factory":
-            await renderFactory();
-            break;
-        case "#/logs":
-            renderLogs();
-            break;
-        case "#/info":
-            await renderInfo();
-            break;
-        case "#/service-configuration":
-            await renderServiceConfiguration();
-            break;
-        case "#/dev":
-            if (!DEVELOP_MODE) {
-                renderError(404);
-                break;
-            }
-            await renderDevelop();
-            break;
-        default:
-            renderError(404);
-    }
+    await runRouteHandler(route, {
+        "#/": renderDashboard,
+        "#/notifications": renderNotifications,
+        "#/prices": renderPrices,
+        "#/clients": renderClients,
+        "#/balance": renderBalance,
+        "#/settings": renderSettings,
+        "#/factory": renderFactory,
+        "#/logs": renderLogs,
+        "#/info": renderInfo,
+        "#/service-configuration": renderServiceConfiguration,
+        "#/dev": renderDevelop,
+        notFound: () => renderError(404),
+    });
 }
 
 
 // --- View Handlers  ---
 
-function formatNumber(value) {
-    return new Intl.NumberFormat("fa-IR").format(Number(value) || 0);
-}
-
-function safe(value) {
-    if (value === undefined || value === null || value === "") return "--";
-    return value;
-}
-
-
-/**
- * فاصله‌ی (گام) نمایش لیبل‌ها روی محور را بر اساس بازه‌ی زمانی مشخص می‌کند
- * تا از شلوغی و همپوشانی لیبل‌ها روی نمودار جلوگیری شود.
- *
- * @param {string} period - نوع بازه‌ی زمانی ("day"، "week"، "month" یا "year").
- * @param {number} totalLabels - تعداد کل لیبل‌هایی که قرار است نمایش داده شوند.
- * @returns {number} فاصله‌ی نمایش لیبل‌ها؛ یعنی از هر چند لیبل، یکی نمایش داده شود.
- */
-function getLabelStep(period, totalLabels) {
-    switch (period) {
-        case "day":
-            return Math.max(1, Math.ceil(totalLabels / 6));
-
-        case "week":
-            return 1;
-
-        case "month":
-            return 5;
-
-        case "year":
-            return 1;
-
-        default:
-            return 1;
-    }
-}
-
 function getSalesTrendData(period = "week") {
-    const salesChart = dashboardRawData.sales_chart || {};
-    const source = salesChart[period];
-
-    if (!source) return null;
-
-    const firstSeries = Array.isArray(source.series)
-        ? source.series[0] || {}
-        : {};
-
-    return {
-        period: source.period,
-        currency: source.currency || "IRR",
-        labels: source.labels || [],
-        series: [
-            {
-                key: "sales",
-                data: firstSeries.sales || [],
-            },
-            {
-                key: "transactions",
-                data: firstSeries.transactions || [],
-            },
-        ],
-        meta: {
-            from: source.meta?.from ?? "--",
-            to: source.meta?.to ?? "--",
-            total_sales: source.meta?.total_sales ?? 0,
-            total_transactions: source.meta?.total_transactions ?? 0,
-        },
-    };
+    return createSalesTrendData(dashboardRawData, period);
 }
-
-function getTrendPeriodLabel(period) {
-    if (period === "24h") return "۲۴ ساعت گذشته";
-    if (period === "7d") return "۷ روز گذشته";
-    if (period === "31d") return "ماه جاری";
-    if (period === "12m") return "۱۲ ماه گذشته";
-    return "--";
-}
-
-function renderSalesTrendChart(container, trendData) {
-    if (!container || !trendData) return;
-
-    const labels = trendData.labels || [];
-
-    const labelStep = getLabelStep(salesTrendPeriod, labels.length);
-
-    const salesSeries =
-        (trendData.series || []).find((s) => s.key === "sales")?.data || [];
-    const transactionsSeries =
-        (trendData.series || []).find((s) => s.key === "transactions")
-            ?.data || [];
-
-    if (!salesSeries.length) {
-        container.innerHTML = `<div class="empty-state">داده‌ای برای نمایش نمودار وجود ندارد</div>`;
-        return;
-    }
-
-    const width = 100;
-    const height = 42;
-    const paddingX = 2;
-    const paddingY = 4;
-
-    const max = Math.max(...salesSeries, 1);
-    const min = 0;
-    const range = Math.max(max - min, 1);
-
-    const stepX =
-        labels.length > 1 ? (width - paddingX * 2) / (labels.length - 1) : 0;
-
-    const pointData = salesSeries.map((value, i) => {
-        const x = paddingX + i * stepX;
-        const normalized = (value - min) / range;
-        const y = height - paddingY - normalized * (height - paddingY * 2);
-
-        return {
-            x,
-            y,
-            sales: Number(value || 0),
-            transactions: Number(transactionsSeries[i] || 0),
-            label: labels[i] || "--",
-        };
-    });
-
-    const points = pointData
-        .map((point) => `${point.x},${point.y.toFixed(2)}`)
-        .join(" ");
-
-    const areaPath = (() => {
-        const firstX = paddingX;
-        const lastX = paddingX + stepX * (salesSeries.length - 1);
-        const baseY = height - paddingY;
-
-        let path = `M ${firstX} ${baseY} `;
-        path += `L ${pointData[0].x} ${pointData[0].y} `;
-
-        for (let i = 1; i < pointData.length; i++) {
-            path += `L ${pointData[i].x} ${pointData[i].y} `;
-        }
-
-        path += `L ${lastX} ${baseY} Z`;
-        return path;
-    })();
-
-    const color = "#0ea5e9";
-    const gradientId = `salesGradient-${Math.random().toString(36).slice(2, 8)}`;
-
-    container.innerHTML = `
-                <div class="sales-trend-header">
-                    <div>
-                        <h3>نمودار فروش</h3>
-                        <small>${getTrendPeriodLabel(trendData.period)}</small>
-                    </div>
-
-                    <div class="sales-trend-switch">
-                        <button type="button" class="btn btn-soft ${salesTrendPeriod === "day" ? "is-active" : ""}" data-period="day">
-                            روز
-                        </button>
-                        <button type="button" class="btn btn-soft ${salesTrendPeriod === "week" ? "is-active" : ""}" data-period="week">
-                            هفته
-                        </button>
-                        <button type="button" class="btn btn-soft ${salesTrendPeriod === "month" ? "is-active" : ""}" data-period="month">
-                            ماه
-                        </button>
-                        <button type="button" class="btn btn-soft ${salesTrendPeriod === "year" ? "is-active" : ""}" data-period="year">
-                            سال
-                        </button>
-                    </div>
-                </div>
-
-                <div class="sales-trend-chart">
-                    <div class="sales-trend-tooltip"></div>
-
-                    <svg class="sales-trend-svg" viewBox="0 0 ${width} ${height}" preserveAspectRatio="none">
-                        <defs>
-                            <linearGradient id="${gradientId}" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="0%" stop-color="${color}" stop-opacity="0.25" />
-                                <stop offset="100%" stop-color="${color}" stop-opacity="0.02" />
-                            </linearGradient>
-                        </defs>
-
-                        <path d="${areaPath}" fill="url(#${gradientId})" stroke="none"></path>
-
-                        <polyline
-                            points="${points}"
-                            fill="none"
-                            stroke="${color}"
-                            stroke-width="0.3"
-                            stroke-linecap="round"
-                            stroke-linejoin="round"
-                        ></polyline>
-
-                        ${pointData
-        .map(
-            (point) => `
-                                    <g
-                                        class="chart-point-group"
-                                        data-label="${safe(point.label)}"
-                                        data-sales="${point.sales}"
-                                        data-transactions="${point.transactions}"
-                                    >
-                                        <circle cx="${point.x}" cy="${point.y}" r="0.6" fill="${color}"></circle>
-                                        <circle cx="${point.x}" cy="${point.y}" r="2" fill="transparent"></circle>
-                                    </g>
-                                `,
-        )
-        .join("")}
-                    </svg>
-                </div>
-
-                 <div class="sales-trend-labels" style="--label-count: ${labels.length};">
-                        ${labels
-        .map((label, index) => {
-            const isLast = index === labels.length - 1;
-            const isVisible = index % labelStep === 0 || isLast;
-
-            return `
-                                    <span class="${isVisible ? "" : "is-hidden"}">
-                                        ${safe(label)}
-                                    </span>
-                                `;
-        })
-        .join("")}
-                    </div>
-
-
-                <div class="sales-trend-meta">
-                    <div><strong>${formatNumber(trendData.meta?.total_sales || 0)}</strong><span>مجموع فروش</span></div>
-                    <div><strong>${formatNumber(trendData.meta?.total_transactions || 0)}</strong><span>تراکنش</span></div>
-                    <div><strong>${safe(trendData.currency)}</strong><span>واحد</span></div>
-                  <div>
-                        <span>
-                            <strong>${safe(formatApiDateTime(trendData.meta?.from, false) || "--")}</strong>
-                            <span style="margin: 0 4px;">تا</span>
-                            <strong>${safe(formatApiDateTime(trendData.meta?.to, false) || "--")}</strong>
-                        </span>
-                    </div>
-                </div>
-            `;
-
-    container.querySelectorAll("[data-period]").forEach((btn) => {
-        btn.addEventListener("click", () => {
-            salesTrendPeriod = btn.dataset.period;
-            renderDashboard();
-        });
-    });
-
-    const chart = container.querySelector(".sales-trend-chart");
-    const tooltip = container.querySelector(".sales-trend-tooltip");
-    const pointGroups = container.querySelectorAll(".chart-point-group");
-
-    pointGroups.forEach((point) => {
-        point.addEventListener("mouseenter", () => {
-            const label = point.dataset.label || "--";
-            const sales = formatNumber(Number(point.dataset.sales || 0));
-            const transactions = formatNumber(
-                Number(point.dataset.transactions || 0),
-            );
-
-            tooltip.innerHTML = `
-                        <div><strong>${label}</strong></div>
-                        <div>فروش: ${sales}</div>
-                        <div>تراکنش: ${transactions}</div>
-                    `;
-            tooltip.style.display = "block";
-        });
-
-        point.addEventListener("mousemove", (event) => {
-            const rect = chart.getBoundingClientRect();
-            const left = event.clientX - rect.left;
-            const top = event.clientY - rect.top;
-
-            tooltip.style.left = `${left + 12}px`;
-            tooltip.style.top = `${top - 12}px`;
-        });
-
-        point.addEventListener("mouseleave", () => {
-            tooltip.style.display = "none";
-        });
-    });
-}
-
-/**
- * یک مقدار تاریخ/زمان (رشته یا شیء Date یا هر ورودی قابل تبدیل به Date) را
- * به فرمت تاریخ فارسی (تقویم شمسی) و خوانا برای نمایش تبدیل می‌کند.
- *
- * @param {string|number|Date} value - مقدار تاریخ ورودی (معمولاً رشته‌ی دریافتی از API).
- * @param {boolean} [showTime=true] - در صورت true بودن، ساعت و دقیقه هم به خروجی اضافه می‌شود.
- * @returns {string} تاریخ (و در صورت نیاز ساعت) فرمت‌شده به صورت فارسی؛
- *                    اگر مقدار ورودی خالی باشد "--" و اگر نامعتبر باشد همان مقدار اولیه برگردانده می‌شود.
- */
-function formatApiDateTime(value, showTime = true) {
-    if (!value) return "--";
-
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-
-    const options = {
-        year: "numeric",
-        month: "2-digit",
-        day: "2-digit",
-    };
-
-    if (showTime) {
-        options.hour = "2-digit";
-        options.minute = "2-digit";
-    }
-
-    return new Intl.DateTimeFormat("fa-IR", options).format(date);
-}
-
-function mapDashboardData(apiData = {}) {
-    if (!apiData) return;
-
-    const today = apiData.today || {};
-    const speaker = apiData.speaker || {};
-    const lastSale = apiData.last_sale || {};
-    const mostSold = apiData.most_sold || {};
-    const wifi = apiData.device?.wifi || {};
-    const device = apiData.device?.info || {};
-
-    const latestActivity = Array.isArray(apiData.latest_activity)
-        ? apiData.latest_activity
-        : [];
-    const warnings = Array.isArray(apiData.warnings)
-        ? apiData.warnings
-        : [];
-    const notifications = Array.isArray(apiData.notifications)
-        ? apiData.notifications
-        : [];
-
-    return {
-        today_sales: today.sales ?? 0,
-        today_transactions: today.transactions ?? 0,
-        active_products: today.active_products ?? 0,
-        device_status: device.status,
-        device_model: device?.model,
-        device_uptime: device?.uptime ?? 0,
-
-        wifi: {
-            rssi: wifi.rssi ?? "",
-            ssid: wifi.ssid ?? "",
-            connected: wifi.connected ?? "",
-        },
-
-        board_version: "--",
-
-        last_operation: {
-            title: latestActivity[0]?.title ?? "--",
-            time: formatApiDateTime(latestActivity[0]?.time),
-            status: latestActivity[0]?.status ?? "--",
-        },
-
-        speaker: {
-            volume: speaker.volume ?? 75,
-            muted: speaker.muted ?? false,
-        },
-
-        last_sale: {
-            product: lastSale.product ?? "--",
-            price: lastSale.price ?? 0,
-            channel: lastSale.channel ?? "--",
-            customer: lastSale.customer ?? "--",
-            payment_method: lastSale.payment_method ?? "--",
-            time: formatApiDateTime(lastSale.time),
-        },
-
-        most_sold: {
-            today: {
-                name: mostSold.today?.name ?? "--",
-                count: mostSold.today?.count ?? 0,
-            },
-            week: {
-                name: mostSold.week?.name ?? "--",
-                count: mostSold.week?.count ?? 0,
-            },
-            month: {
-                name: mostSold.month?.name ?? "--",
-                count: mostSold.month?.count ?? 0,
-            },
-        },
-
-        warnings: warnings.map((item) => ({
-            title: item.title ?? "--",
-            message: item.message ?? "--",
-            status: item.status ?? "--",
-            time: formatApiDateTime(item.time),
-        })),
-
-        notifications: notifications.map((item) => ({
-            title: item.title ?? "--",
-            message: item.message ?? "--",
-            status: item.status ?? "--",
-            time: formatApiDateTime(item.time),
-        })),
-
-        latest_activity: latestActivity.map((item) => ({
-            title: item.title ?? "--",
-            description: item.description ?? "--",
-            status: item.status ?? "--",
-            time: formatApiDateTime(item.time),
-        })),
-
-        sales_chart: apiData.sales_chart || {},
-    };
-}
-
-const getStatusClass = (status) => {
-    if (status === "success" || status === "online") return "status-on";
-    if (status === "warning") return "status-warn";
-    if (status === "info") return "status-info";
-    return "status-off";
-};
-
-const formatPaymentMethod = (method) => {
-    if (method === "wallet") return "کیف پول";
-    if (method === "cash") return "نقدی";
-    if (method === "card") return "کارت";
-    return safe(method);
-};
 
 async function renderDashboard() {
 
@@ -1351,379 +806,46 @@ async function renderDashboard() {
 
 
     dashboardRawData = renderDashboardData;
-    const data = mapDashboardData(renderDashboardData);
-
-    const formatStatus = (status) => {
-        return safe(
-            status === "success"
-                ? "موفق"
-                : status === "online"
-                    ? "فعال"
-                    : status === "warning"
-                        ? "هشدار"
-                        : status === "info"
-                            ? "اطلاع"
-                            : status === "error"
-                                ? "خطا"
-                                : status,
-        );
-    };
+    const data = mapDashboardData(renderDashboardData, {formatApiDateTime});
 
     const time = formatDateTime();
-    const wifi = data.wifi || {};
-    const lastOperation = data.last_operation || {};
     const salesTrend = getSalesTrendData(salesTrendPeriod);
 
-    function getStatusMeta(status) {
-
-        const raw = String(status ?? "").toLowerCase();
-
-        if (["success", "online", "active", "connected", "ok", "true"].includes(raw)) {
-            return {cls: "connected", label: "فعال"};
-        }
-
-        if (["warning", "info", "connecting", "pending", "unknown"].includes(raw)) {
-            return {cls: "warning", label: "هشدار"};
-        }
-
-        if (["error", "offline", "fail", "failed", "disconnected", "down", "false"].includes(raw)) {
-            return {cls: "disconnected", label: "قطع"};
-        }
-
-        return {cls: "warning", label: safe(status)};
-    }
-
-    const deviceMeta = getStatusMeta(data?.device_status);
-    const wifiMeta = wifi.connected === true
-        ? {cls: "connected", label: "متصل"}
-        : wifi.connected === false
-            ? {cls: "disconnected", label: "قطع"}
-            : {cls: "warning", label: "نامشخص"};
-
-
-    app.innerHTML = `
-                      <div class="dashboard-container">
-
-                      <div class="dashboard-compact">
-                          <div class="dashboard-header">
-                              <div class="dashboard-greeting">
-                                  <div class="greeting-icon">👋</div>
-                                  <div>
-                                      <h2>سلام hame...:)</h2>
-                                      <span>نمای کلی همه دستگاه‌ها</span>
-                                  </div>
-                              </div>
-
-                  ${DEVELOP_MODE ? `
-                        <div onclick="showToast('success','','خسته نباشی 👋')" class="dev-mode-badge">
-                            <span class="dev-mode-dot"></span>
-                            DEV MODE
-                        </div>
-                        ` : ""}
-
-
-                              <div class="dashboard-date">
-                                  <div class="time-jalali">${safe(time.jalali)}</div>
-                                     <div class="top-bar">
-                                          <button class="btn-download" data-permission="dashboard.report.export" onclick='downloadReport(${JSON.stringify(data)})'>
-                                              ${getIcon("download")}
-                                              گزارش فروش
-                                          </button>
-                                      </div>
-                              </div>
-                          </div>
-
-                          <div class="mini-grid">
-                                <div class="mini-card ${deviceMeta.cls}">
-                                    <div class="mini-icon">${getIcon("server")}</div>
-                                    <div>
-                                        <span>سیستم</span>
-                                        <strong><small>${deviceMeta.label}</small></strong>
-                                    </div>
-                                </div>
-
-                                <div class="mini-card ${wifiMeta.cls}">
-                                    <div class="mini-icon">${getIcon("wifi")}</div>
-                                    <div>
-                                        <span>WiFi ${wifi.ssid ? `(${safe(wifi.ssid)})` : ""}</span>
-                                        <strong>
-                                            <small>
-                                                ${safe(wifi.rssi)}${wifi.rssi != null ? " dBm" : ""}
-                                                ${wifi.connected !== "" ? ` · ${wifiMeta.label}` : ""}
-                                            </small>
-                                        </strong>
-                                    </div>
-                                </div>
-
-                                <div class="mini-card ${deviceMeta.cls}">
-                                    <div class="mini-icon">${getIcon("setting")}</div>
-                                    <div>
-                                        <span>Board</span>
-                                        <strong><small>v${safe(data.device_model)}</small></strong>
-                                    </div>
-                                </div>
-                            </div>
-
-                      </div>
-
-                          <div class="dashboard-compact">
-
-
-                             <div class="metric-grid">
-
-                                    <div class="metric-card">
-                                        <div class="metric-icon">
-                                            ${getIcon("box")}
-                                        </div>
-
-                                        <div class="metric-content">
-                                            <span class="metric-title">محصولات فعال</span>
-                                            <strong class="metric-value">${formatNumber(data.active_products ?? 0)}</strong>
-                                            <small class="metric-desc">در کل شبکه</small>
-                                        </div>
-                                    </div>
-
-                                    <div class="metric-card">
-                                        <div class="metric-icon">
-                                            ${getIcon("device")}
-                                        </div>
-
-                                        <div class="metric-content">
-                                            <span class="metric-title">زمان آپتایم</span>
-                                            <strong class="metric-value">${safe(data.device_uptime)}</strong>
-                                        </div>
-                                    </div>
-
-                                    <div class="metric-card">
-                                        <div class="metric-icon">
-                                            ${getIcon("transactions")}
-                                        </div>
-
-                                        <div class="metric-content">
-                                            <span class="metric-title">تراکنش‌ها</span>
-                                            <strong class="metric-value">${formatNumber(data.today_transactions ?? 0)}</strong>
-                                            <small class="metric-desc">موفق امروز</small>
-                                        </div>
-                                    </div>
-
-                                    <div class="metric-card">
-                                        <div class="metric-icon">
-                                            ${getIcon("trend_up")}
-                                        </div>
-
-                                        <div class="metric-content">
-                                            <span class="metric-title">فروش امروز</span>
-                                            <strong class="metric-value">
-                                                ${formatNumber(data.today_sales ?? 0)} تومان
-                                            </strong>
-                                        </div>
-                                    </div>
-
-                           </div>
-
-
-                                <div class="compact-card">
-                                  <div class="section-title">
-                                      <span>Volume</span>
-                                      <small>Sound</small>
-                                  </div>
-
-                                  <div class="volume-box">
-                                      <input
-                                          type="range"
-                                          min="0"
-                                          max="100"
-                                          step="25"
-                                          value="${safe(data.speaker?.volume ?? 75)}"
-                                          id="volumeSlider"
-                                          data-permission="device.volume.update"
-                                          data-permission-mode="disable"
-                                          oninput="setVolume(this.value)"
-                                      >
-                                     <span id="volumeValue">${safe(data.speaker?.volume ?? 75)}%</span>
-
-
-                                  </div>
-                              </div>
-
-                            ${
-        !!salesTrend
-            ? ` <div class="compact-card sales-trend-card">
-                                                                    <div id="salesTrendChart"></div>
-                                                                    </div>`
-            : ""
-    }
-
-                                <div class="compact-card">
-                                    <div class="section-title">
-                                        <span>آخرین فروش</span>
-                                        <small>Last Sale</small>
-                                    </div>
-
-                                    ${
-        safe(data.last_sale.product) !== "--"
-            ? `
-                                                                    <div class="info-list">
-                                                                        <div><strong>محصول:</strong> <span>${safe(data.last_sale.product)}</span></div>
-                                                                        <div><strong>قیمت:</strong> <span>${formatNumber(data.last_sale.price)} تومان</span></div>
-                                                                        <div><strong>کانال:</strong> <span>${safe(data.last_sale.channel)}</span></div>
-                                                                        <div><strong>مشتری:</strong> <span>${safe(data.last_sale.customer)}</span></div>
-                                                                        <div><strong>پرداخت:</strong> <span>${formatPaymentMethod(data.last_sale.payment_method)}</span></div>
-                                                                        <div><strong>زمان:</strong> <span>${safe(data.last_sale.time)}</span></div>
-                                                                    </div>
-                                                                `
-            : `<div class="empty-state">دیتایی وجود ندارد</div>`
-    }
-                                </div>
-
-
-                                <div class="compact-card">
-                                    <div class="section-title">
-                                        <span>پرفروش‌ترین‌ها</span>
-                                        <small>Most Sold</small>
-                                    </div>
-
-                                    ${
-        safe(data.last_sale.product) !== "--"
-            ? ` <div class="info-list">
-                                        <div><strong>امروز:</strong> <span>${safe(data.most_sold.today.name)} - ${formatNumber(data.most_sold.today.count)}</span></div>
-                                        <div><strong>این هفته:</strong> <span>${safe(data.most_sold.week.name)} - ${formatNumber(data.most_sold.week.count)}</span></div>
-                                        <div><strong>این ماه:</strong> <span>${safe(data.most_sold.month.name)} - ${formatNumber(data.most_sold.month.count)}</span></div>
-                                    </div>`
-            : `<div class="empty-state">دیتایی وجود ندارد</div>`
-    }
-                                </div>
-
-
-                                <div class="compact-card">
-                                    <div class="section-title">
-                                        <span>اعلان‌ها</span>
-                                        <small>Notifications</small>
-                                    </div>
-
-                                    <div class="activity-list">
-                                        ${
-        data.notifications.length
-            ? data.notifications
-                .map(
-                    (item) => `
-                                                <div class="activity-item">
-                                                    <div>
-                                                        <strong>${safe(item.title)}</strong>
-                                                        <span>${safe(item.message)}</span>
-                                                        <small>${safe(item.time)}</small>
-                                                    </div>
-                                                    <span class="status-badge ${getStatusClass(item.status)}">
-                                                        ${formatStatus(item.status)}
-                                                    </span>
-                                                </div>
-                                            `,
-                )
-                .join("")
-            : `<div class="empty-state">دیتایی وجود ندارد</div>`
-    }
-                                    </div>
-                                </div>
-
-
-                         </div>
-
-
-                          <div class="dashboard-compact">
-
-                              <div class="compact-card">
-                                  <div class="section-title">
-                                      <span>آخرین عملیات</span>
-                                      <small>Result</small>
-                                  </div>
-
-                                   ${
-        lastOperation.status !== "--"
-            ? `<div class="last-operation">
-                                        <div>
-                                            <strong>${safe(lastOperation.title)}</strong>
-                                            <span>${safe(lastOperation.time)}</span>
-                                        </div>
-
-                                        <span class="status-badge ${getStatusClass(lastOperation.status)}">
-                                                              ${formatStatus(lastOperation.status)}
-                                                          </span>
-                                    </div>`
-            : `<div class="empty-state">دیتایی وجود ندارد</div>`
-    }
-                              </div>
-
-
-                              <div class="compact-card">
-                                <div class="section-title">
-                                    <span>فعالیت‌های اخیر</span>
-                                    <small>Latest Activity</small>
-                                </div>
-
-                                <div class="activity-list">
-                                    ${
-        data.latest_activity.length
-            ? data.latest_activity
-                .map(
-                    (item) => `
-                                            <div class="activity-item">
-                                                <div>
-                                                    <strong>${safe(item.title)}</strong>
-                                                    <span>${safe(item.description)}</span>
-                                                    <small>${safe(item.time)}</small>
-                                                </div>
-                                                <span class="status-badge ${getStatusClass(item.status)}">
-                                                    ${formatStatus(item.status)}
-                                                </span>
-                                            </div>
-                                        `,
-                )
-                .join("")
-            : `<div class="empty-state">دیتایی وجود ندارد</div>`
-    }
-                                </div>
-                            </div>
-
-
-                                <div class="compact-card">
-                                    <div class="section-title">
-                                        <span>هشدارها</span>
-                                        <small>Warnings</small>
-                                    </div>
-
-                                    <div class="activity-list">
-                                        ${
-        data.warnings.length
-            ? data.warnings
-                .map(
-                    (item) => `
-                                                <div class="activity-item">
-                                                    <div>
-                                                        <strong>${safe(item.title)}</strong>
-                                                        <span>${safe(item.message)}</span>
-                                                        <small>${safe(item.time)}</small>
-                                                    </div>
-                                                    <span class="status-badge ${getStatusClass(item.status)}">
-                                                        ${formatStatus(item.status)}
-                                                    </span>
-                                                </div>
-                                            `,
-                )
-                .join("")
-            : `<div class="empty-state">دیتایی وجود ندارد</div>`
-    }
-                                    </div>
-                                </div>
-
-
-                          </div>
-                      </div>
-                  `;
-
-    renderSalesTrendChart(
-        document.getElementById("salesTrendChart"),
+    app.innerHTML = renderDashboardPageShell({
+        data,
+        isDevelopMode: DEVELOP_MODE,
         salesTrend,
-    );
+        time,
+        icons: {
+            box: getIcon("box"),
+            device: getIcon("device"),
+            download: getIcon("download"),
+            server: getIcon("server"),
+            setting: getIcon("setting"),
+            transactions: getIcon("transactions"),
+            trendUp: getIcon("trend_up"),
+            wifi: getIcon("wifi"),
+        },
+        formatNumber,
+        safeText: safe,
+    });
+
+    renderSalesTrendChart(document.getElementById("salesTrendChart"), {
+        trendData: salesTrend,
+        selectedPeriod: salesTrendPeriod,
+        onPeriodChange: (period) => {
+            salesTrendPeriod = period;
+            renderDashboard();
+        },
+        formatApiDateTime,
+        formatNumber,
+        safeText: safe,
+    });
+    bindDashboardPageEvents(app, {
+        onDevBadgeClick: () => showToast("success", "", "خسته نباشی 👋"),
+        onDownloadReport: () => downloadReport(data),
+        onVolumeInput: setVolume,
+    });
 
     startClock();
 }
@@ -1829,69 +951,16 @@ async function renderNotifications() {
         showLoader(false);
     }
 
-    const notifications = Array.isArray(payload?.notifications)
-        ? payload.notifications
-        : [];
+    const notifications = getNotificationsFromPayload(payload);
 
-    const unreadCount = notifications.filter((notification) => notification?.read !== true).length;
-    updateNotifBadge(unreadCount);
+    updateNotifBadge(countUnreadNotifications(notifications));
 
-    app.innerHTML = `
-                      <div class="card">
-                         <div class="notifications-header">
-                           <div style="display: flex; align-items: center; justify-content: start; gap: 10px">
-                              ${getIcon("bell")}
-                              <h2>اعلانات</h2>
-                          </div>
-                              <button class="btn btn-soft" data-permission="notifications.mark_read" onclick="markNotificationsRead()">خوانده شد ✓</button>
-                         </div>
-
-                      </div>
-
-                      <div class="notifications-page" id="notificationsList"></div>
-                  `;
+    app.innerHTML = renderNotificationsPageShell({bellIcon: getIcon("bell")});
+    bindNotificationsPageEvents(app, {onMarkRead: markNotificationsRead});
 
     const list = document.getElementById("notificationsList");
 
-    if (!notifications.length) {
-        list.innerHTML = `<div class="card empty-state">اعلانی برای نمایش وجود ندارد.</div>`;
-        return;
-    }
-
-    const statusColors = {
-        success: "var(--success-solid)",
-        warning: "var(--warning)",
-        error: "var(--danger-solid)",
-        danger: "var(--danger-solid)",
-        info: "var(--info)",
-    };
-
-    notifications.forEach((notification) => {
-        const item = document.createElement("article");
-        item.className = "notification-item";
-        item.classList.toggle("is-read", notification?.read === true);
-        item.dataset.notificationId = String(notification?.id ?? "");
-
-        const dot = document.createElement("div");
-        dot.className = "notification-dot";
-        dot.style.background = statusColors[notification?.status] || "var(--info)";
-
-        const content = document.createElement("div");
-        content.className = "notification-content";
-
-        const title = document.createElement("strong");
-        title.textContent = safe(notification?.title);
-
-        const message = document.createElement("p");
-        message.textContent = safe(notification?.message);
-
-        const time = document.createElement("small");
-        time.textContent = safe(notification?.time);
-
-        content.append(title, message, time);
-        item.append(dot, content);
-        list.appendChild(item);
-    });
+    renderNotificationItems(list, notifications, {safeText: safe});
 }
 
 async function markNotificationsRead() {
@@ -1971,81 +1040,26 @@ async function renderClients() {
                   </div>
 
                   <div class="page-action-bar">
-                     <button class="btn" data-permission="clients.create" onclick="addNewClient()">${getIcon("add")}افزودن کاربر جدید</button>
-                      <button class="btn btn-outline" onclick="location.hash='#/'">بازگشت</button>
+                     <button class="btn" data-client-add data-permission="clients.create">${getIcon("add")}افزودن کاربر جدید</button>
+                      <button class="btn btn-outline" data-client-back>بازگشت</button>
                   </div>
                   `;
 
     const table = document.getElementById("clientsTable");
-    let index = 0;
-
-    for (let key in renderClientsData) {
-        const row = renderClientsData[key];
-        const isRowDisabled = !!row.disabledByServer;
-        const hasError = !!row.error;
-        const isActive = isClientActive(row.status);
-
-        const tr = document.createElement("tr");
-
-        if (!isActive) tr.classList.add("row-inactive");
-        if (hasError) tr.classList.add("row-error");
-
-        index++;
-
-        tr.innerHTML = `
-                              <td class="col-index">
-                                  <span class="channel-badge ${hasError ? "channel-badge-error" : ""}">
-                                      ${index}
-                                  </span>
-                              </td>
-
-                              <td class="col-name">
-                                  <input
-                                      class="input-display"
-                                      type="text"
-                                      value="${row.name || "---"}"
-                                      readonly
-                                      tabindex="-1"
-                                  >
-                              </td>
-
-                              <td class="col-id">
-                                  <span>
-                                      ${row.id || "--"}
-                                  </span>
-                              </td>
-
-                              <td class="col-status">
-                                  <span class="badge ${isActive ? "badge-active" : "badge-inactive"}">
-                                      ${isActive ? "فعال" : "غیر فعال"}
-                                  </span>
-                              </td>
-
-                              <td class="col-settings">
-                                  <button
-                                      class="btn-manage"
-                                      data-permission="clients.update"
-                                      data-permission-mode="disable"
-                                      onclick="openClientsAdvancedSettings('${key}')"
-                                      ${isRowDisabled ? "disabled" : ""}
-                                  >
-                                      ${hasError ? getIcon("warning") : getIcon("setting")}
-                                  </button>
-                              </td>
-                          `;
-
-        table?.appendChild(tr);
-    }
+    bindClientPageEvents(app, {
+        onAddClient: addNewClient,
+        onBack: () => {
+            location.hash = "#/";
+        },
+    });
+    renderClientTableRows(table, renderClientsData, {
+        warning: getIcon("warning"),
+        setting: getIcon("setting"),
+    });
+    bindClientTableEvents(table, {
+        onOpenSettings: openClientsAdvancedSettings,
+    });
 }
-
-function isClientActive(status) {
-    return ["active", "فعال"].includes(String(status || "").trim().toLowerCase());
-}
-
-function getClientApiStatus(isActive) {
-    return isActive ? "Active" : "Inactive";
-}
-
 
 function openClientsAdvancedSettings(key) {
     if (!requirePermission(PERMISSIONS.CLIENTS_UPDATE)) return;
@@ -2054,72 +1068,13 @@ function openClientsAdvancedSettings(key) {
     if (!rowData) return;
 
 
-    const rowName = rowData.name || "";
-    const rowId = rowData.id || "";
-    const rowVisible = isClientActive(rowData.status);
-    let rowError = rowData.error || "";
-    const rowDisabledByServer = rowData.disabledByServer || "";
+    const modalBody = renderClientAdvancedModalBody({
+        key,
+        rowData,
+        userIcon: getIcon("users"),
+    });
 
-    const modalBody = `
-                  <div class="adv-modal">
-                      <div class="modal-product-icon">
-                      ${getIcon("users")}
-                      </div>
-
-                      <p style="text-align: center; margin-bottom: 10px;">
-                         ویرایش کاربر ${rowName || rowId}
-                      </p>
-
-                      <div class="input-group">
-                          <label>ویرایش نام</label>
-                          <input type="text" id="modalName" placeholder="نام کاربر" value="${rowName}" class="input-text">
-                      </div>
-
-                      <div class="input-group">
-                            <label>ویرایش ایدی</label>
-                            <input
-                                type="text"
-                                id="modalId"
-                                placeholder="ایدی کاربر"
-                                value="${rowId}"
-                                class="input-text"
-                                style="direction: ltr"
-                                min="0"
-                                oninput="this.value = this.value.replace(/[^0-9]/g, '')"
-                            >
-                        </div>
-
-                      <div  class="input-group">
-                          <div class="toggle-row">
-                              <span>وضعیت کاربر</span>
-                              <label class="switch">
-                                <input
-                                    type="checkbox"
-                                    id="modalVisible"
-                                    ${rowVisible ? "checked" : ""}
-                                    ${rowError ? "disabled" : ""}
-                                >
-                                <span class="slider"></span>
-                              </label>
-                          </div>
-                      </div>
-
-                      <div class="input-group">
-                          <button
-                              type="button"
-                              class="btn-danger"
-                              data-permission="clients.delete"
-                              style="width: 100%"
-                              onclick="deleteClient('${key}')"
-                              ${rowDisabledByServer ? "disabled" : ""}
-                          >
-                              حذف کاربر
-                          </button>
-                      </div>
-                  </div>
-              `;
-
-    showModal({
+    const modal = showModal({
         message: modalBody,
         type: "noType",
         onConfirm: async (modal) => {
@@ -2127,8 +1082,9 @@ function openClientsAdvancedSettings(key) {
             const name = document.getElementById("modalName").value.trim();
             const isActive = document.getElementById("modalVisible").checked;
 
-            if (!name || !id) {
-                showToast("error", "خطا", "نام و شناسه کاربر نمی‌توانند خالی باشند.");
+            const validationError = validateClientForm({name, id});
+            if (validationError) {
+                showToast("error", "خطا", validationError);
                 return;
             }
 
@@ -2167,6 +1123,9 @@ function openClientsAdvancedSettings(key) {
                 showLoader(false);
             }
         },
+    });
+    bindClientAdvancedModalEvents(modal, {
+        onDelete: deleteClient,
     });
 }
 
@@ -2217,39 +1176,11 @@ async function deleteClient(key) {
 async function addNewClient() {
     if (!requirePermission(PERMISSIONS.CLIENTS_CREATE)) return;
 
-    const modalBody = `
-                  <div class="adv-modal">
-                      <div class="modal-product-icon">
-                      ${getIcon("users")}
-                      </div>
+    const modalBody = renderClientCreateModalBody({
+        userIcon: getIcon("users"),
+    });
 
-                      <p style="text-align: center; margin-bottom: 10px;">
-                         افزودن کاربر جدید
-                      </p>
-
-                      <div class="input-group">
-                          <label>نام</label>
-                          <input type="text" id="modalName" placeholder="نام کاربر" value="" class="input-text">
-                      </div>
-
-                      <div class="input-group">
-                          <label>ایدی</label>
-                          <input type="text" id="modalId" placeholder="ایدی کاربر" value="" class="input-text">
-                      </div>
-
-                      <div class="input-group">
-                          <div class="toggle-row">
-                              <span>وضعیت کاربر</span>
-                              <label class="switch">
-                                <input type="checkbox" id="modalVisible" checked>
-                                <span class="slider"></span>
-                              </label>
-                          </div>
-                      </div>
-                  </div>
-              `;
-
-    showModal({
+    const modal = showModal({
         message: modalBody,
         type: "noType",
         onConfirm: async (modal) => {
@@ -2257,11 +1188,12 @@ async function addNewClient() {
             const id = document.getElementById("modalId").value.trim();
             const status = getClientApiStatus(document.getElementById("modalVisible").checked);
 
-            if (!name || !id) {
+            const validationError = validateClientForm({name, id}, CLIENT_MESSAGES.requiredNameAndPersianId);
+            if (validationError) {
                 showToast(
                     "error",
                     "خطا",
-                    "نام و ایدی نمی‌توانند خالی باشند ❌",
+                    validationError,
                 );
                 return;
             }
@@ -2295,6 +1227,9 @@ async function addNewClient() {
             }
         },
     });
+    bindClientAdvancedModalEvents(modal, {
+        onDelete: deleteClient,
+    });
 }
 
 async function renderBalance() {
@@ -2307,74 +1242,17 @@ async function renderBalance() {
         showLoader(false);
     }
 
-    let clients = renderBalanceData || [];
+    const clients = renderBalanceData || [];
 
-    let rows = "";
-
-
-    clients.forEach((c, i) => {
-        rows += `
-                      <tr>
-                          <td>${i + 1}</td>
-                          <td>${c.name}</td>
-                          <td id="clientId${i}">${c.id}</td>
-
-                          <td>
-                              <input
-                                  style="direction: ltr"
-                                  type="number"
-                                  step="100000"
-                                  id="balance${i}"
-                                  value="${c.balance}"
-                              >
-                          </td>
-
-                      </tr>
-                      `;
+    app.innerHTML = renderBalancePageShell({
+        clients,
+        payIcon: getIcon("pay"),
     });
-
-    app.innerHTML = `
-                              <div class="card">
-
-                              <div style="display: flex; align-items: center; justify-content: start; gap: 10px">
-                                    ${getIcon("pay")}
-                                    <h2>مدیریت موجودی کاربران</h2>
-                              </div>
-
-                                <table id="balanceTable">
-                                  <thead>
-                                    <tr>
-                                      <th class="col-index">#</th>
-                                      <th class="col-name">نام</th>
-                                      <th class="col-id">ID</th>
-                                      <th class="col-price">موجودی</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    ${rows}
-                                  </tbody>
-                                </table>
-                              </div>
-
-                            <div class="page-action-bar">
-                                  <div class="action-group">
-                                      <input type="number" step="1000000" id="globalBalanceInput" data-permission="balance.update" data-permission-mode="disable" placeholder="موجودی برای همه">
-                                      <button class="btn" data-permission="balance.update" onclick="applyBalanceToAll(${clients.length})">
-                                          اعمال به همه
-                                      </button>
-                                  </div>
-
-                                  <div class="action-group">
-                                      <button class="btn" data-permission="balance.update" onclick="confirmSave(${clients.length})">
-                                          ذخیره تغییرات
-                                      </button>
-                                      <button class="btn btn-outline" data-permission="balance.export" onclick="downloadBalanceCSV()">
-                                          دانلود CSV
-                                      </button>
-                                  </div>
-                              </div>
-                  `;
-
+    bindBalancePageEvents(app, {
+        onApplyAll: () => applyBalanceToAll(clients.length),
+        onSave: () => confirmSave(clients.length),
+        onExport: downloadBalanceCSV,
+    });
 }
 
 function applyBalanceToAll(count) {
@@ -2382,8 +1260,9 @@ function applyBalanceToAll(count) {
 
     const value = document.getElementById("globalBalanceInput").value;
 
-    if (value === "") {
-        showToast("warning", "توجه", "اول مقدار وارد کن!");
+    const validationError = validateGlobalBalance(value);
+    if (validationError) {
+        showToast("warning", "توجه", validationError);
         return;
     }
 
@@ -2404,10 +1283,7 @@ async function submitAllBalances(count) {
         const idCell = document.getElementById("clientId" + i);
 
         if (input && idCell) {
-            updates.push({
-                id: idCell.innerText.trim(),
-                newBalance: Number(input.value),
-            });
+            updates.push(createBalanceUpdate(idCell.innerText, input.value));
         }
     }
 
@@ -2445,7 +1321,7 @@ async function downloadBalanceCSV() {
     try {
         const csvBlob = await api("/api/balance-export");
 
-        if (!(csvBlob instanceof Blob) || !csvBlob.type.toLowerCase().includes("text/csv")) {
+        if (!isCsvBlob(csvBlob)) {
             throw new TypeError("پاسخ سرور فایل CSV نیست.");
         }
 
@@ -2485,221 +1361,32 @@ async function renderSettings() {
     const defaultTime = now.toTimeString().slice(0, 5);
 
 
-    app.innerHTML = `
-                      <div class="card" style="padding-bottom: 60px">
-                          <div>
-                              <div style="display: flex; align-items: center; justify-content: start; gap: 10px;">
-                                  ${getIcon("setting")}
-                                  <h2>تنظیمات دستگاه</h2>
-                              </div>
-                          </div>
-
-                          <form id="settingsForm" onsubmit="saveSettings(event)">
-
-                              <!-- WiFi Settings -->
-                              <div class="drawer">
-                                  <div class="drawer-summary" onclick="toggleDrawer('wifi')">
-                                    <div style="display: flex; align-items: center; justify-content: start; gap: 10px;">
-                                          ${getIcon("wireless")}
-                                          <div>تنظیمات شبکه</div>
-                                      </div>
-                                  </div>
-
-                                  <div class="drawer-content" id="wifi" style="display:none">
-
-                                      <div class="grid">
-
-                                          <!-- hidden input برای submit فرم -->
-                                          <input type="hidden" name="wifiSSID" id="wifiSSID">
-
-                                          <div class="compact-card wifi-section">
-
-                                              <div class="section-title">
-                                                  <span>انتخاب شبکه WiFi</span>
-                                                  <div style="display: flex; gap: 10px">
-                                                      <button type="button" class="btn btn-outline" data-permission="wifi.connect" style="width: 40px" onClick="addWifi()">
-                                                          ${getIcon("add")}
-                                                      </button>
-                                                       <button type="button" class="btn btn-outline" data-permission="wifi.scan" style="width: 40px" onClick="loadWifiList()">
-                                                          ${getIcon("refresh")}
-                                                      </button>
-                                                  </div>
-                                              </div>
-
-                                              <div id="wifiList" class="wifi-list">
-                                                  در حال اسکن...
-                                              </div>
-
-                                          </div>
-
-
-                                              <div class="compact-card">
-                                                   <div class="form-group">
-                                                     <label>نقطه اتصال دستگاه (AP)</label>
-                                                     <input  type="text" name="apSSID" value="${renderSettingsData.apSSID || ""}" placeholder="نام نقطه اتصال دستگاه را وارد کنید">
-                                                   </div>
-
-                                                   <div class="form-group">
-                                                      <label>رمز عبور جدید (حداقل ۸ کاراکتر)</label>
-
-                                                        <div style="display:flex;gap:6px">
-
-                                                              <button
-                                                                  type="button"
-                                                                  class="btn btn-outline"
-                                                                  style="width: 44px"
-                                                                onclick="toggleInputVisibility('APwifiPassword')"
-                                                              >
-                                                                  ${getIcon("eye")}
-                                                              </button>
-
-                                                              <input
-                                                                   dir="ltr"
-                                                                   type="password"
-                                                                   id="APwifiPassword"
-                                                                   name="apPassword"
-                                                                   placeholder="رمز عبور جدید را وارد کنید"
-                                                                   style="flex:1"
-                                                              >
-
-                                                          </div>
-
-                                                   </div>
-
-                                                     <div class="form-group">
-                                                      <label>تایید رمز عبور جدید (حداقل ۸ کاراکتر)</label>
-
-                                                          <div style="display:flex;gap:6px">
-
-                                                              <button
-                                                                  type="button"
-                                                                  class="btn btn-outline"
-                                                                  style="width: 44px"
-                                                                onclick="toggleInputVisibility('APConfwifiPassword')"
-                                                              >
-                                                                  ${getIcon("eye")}
-                                                              </button>
-
-                                                              <input
-                                                                   dir="ltr"
-                                                                   type="password"
-                                                                   name="confPassword"
-                                                                   placeholder="تکرار رمز عبور جدید را وارد کنید"
-                                                                   id="APConfwifiPassword"
-                                                                   style="flex:1"
-                                                              >
-
-                                                          </div>
-
-                                                   </div>
-                                              </div>
-
-
-                                      </div>
-
-                                  </div>
-
-                              </div>
-
-                        <!--todo : felan niaz nadarim in bakhsho -->
-                                                      <!-- Admin Credentials -->
-                        <!--                              <div class="drawer">-->
-                        <!--                                  <div class="drawer-summary" onclick="toggleDrawer('admin')">-->
-                        <!--                                       <div style="display: flex; align-items: center; justify-content: start; gap: 10px;">-->
-                        <!--                                          ${getIcon("users")}-->
-                        <!--                                          <div>مدیریت اپراتور ها</div>-->
-                        <!--                                      </div>-->
-                        <!--                                  </div>-->
-                        <!--                                  <div class="drawer-content" id="admin" style="display:none">-->
-                        <!--                                      <div class="grid">-->
-                        <!--                                          <div class="form-group">-->
-                        <!--                                              <label>نام کاربری اپراتور</label>-->
-                        <!--                                              <input type="text" name="adminUsername" placeholder="نام کاربری اپراتور جدید را وارد کنید " value="${renderSettingsData.adminUsername || ""}">-->
-                        <!--                                          </div>-->
-                        <!--                                          <div class="form-group">-->
-                        <!--                                              <label>رمز عبور </label>-->
-                        <!--                                              <input type="password" name="adminPassword" placeholder="رمز عبور اپراتور جدید را وارد کنید">-->
-                        <!--                                          </div>-->
-                        <!--                                      </div>-->
-                        <!--                                  </div>-->
-                        <!--                              </div>-->
-
-
-                              <!-- POS Device -->
-                              <div class="drawer">
-                                  <div class="drawer-summary" onclick="toggleDrawer('pos')">
-                                       <div style="display: flex; align-items: center; justify-content: start; gap: 10px;">
-                                          ${getIcon("pay")}
-                                          <div>تنظیمات کارتخوان (POS)</div>
-                                      </div>
-                                  </div>
-                                  <div class="drawer-content" id="pos" style="display:none">
-                                      <div class="form-group">
-                                          <label>انتخاب پروتکل کارتخوان</label>
-                                          <select name="posDevice">
-                                              <option value="SAMAN" ${renderSettingsData.posDevice === "SAMAN" ? "selected" : ""}>سامان کیش</option>
-                                              <option value="IRAN" ${renderSettingsData.posDevice === "IRAN" ? "selected" : ""}>ایران کیش</option>
-                                              <option value="FAN" ${renderSettingsData.posDevice === "FAN" ? "selected" : ""}>فن آوا</option>
-                                              <option value="SADAD" ${renderSettingsData.posDevice === "SADAD" ? "selected" : ""}>سداد</option>
-                                          </select>
-                                      </div>
-                                  </div>
-                              </div>
-
-                              <!-- Date & Time -->
-                              <div class="drawer">
-                                  <div class="drawer-summary" onclick="toggleDrawer('datetime')">
-                                      <div style="display: flex; align-items: center; justify-content: start; gap: 10px;">
-                                          ${getIcon("setting")}
-                                          <div>تنظیم زمان و تاریخ</div>
-                                      </div>
-                                  </div>
-                                  <div class="drawer-content" id="datetime" style="display:none">
-                                      <div class="grid">
-                                          <div class="form-group">
-                                              <label>تاریخ</label>
-                                                <input type="date" name="setDate" value="${renderSettingsData.currentDate || defaultDate}">
-                                          </div>
-                                          <div class="form-group">
-                                              <label>ساعت</label>
-                                              <input type="time" name="setTime" value="${renderSettingsData.currentTime || defaultTime}">
-                                          </div>
-                                      </div>
-                                  </div>
-                              </div>
-
-                                          <!-- رخدادها -->
-                              <div class="drawer" data-permission="logs.view" onclick="handleNavigation('#/logs')">
-                                  <div class="drawer-summary">
-                                      <div style="display: flex; align-items: center; justify-content: start; gap: 10px; cursor: pointer;">
-                                          ${getIcon("logs")}
-                                          <div>رخدادها</div>
-                                      </div>
-                                  </div>
-                              </div>
-
-                              <!-- تنظیمات کارخانه -->
-                              <div class="drawer" data-permission="factory.view" onclick="handleNavigation('#/factory')">
-                                  <div class="drawer-summary">
-                                      <div style="display: flex; align-items: center; justify-content: start; gap: 10px; cursor: pointer; color: var(--danger);">
-                                          ${getIcon("refresh")}
-                                          <div>تنظیمات کارخانه</div>
-                                      </div>
-                                  </div>
-                              </div>
-
-
-                          </form>
-                      </div>
-
-                        <div class="page-action-bar">
-                              <button type="submit" form="settingsForm" class="btn" data-permission="settings.update">ذخیره تمامی تغییرات</button>
-                              <button type="button" class="btn btn-outline" onclick="handleNavigation('#/')">بازگشت</button>
-                        </div>
-
-                  `;
+    app.innerHTML = renderSettingsPageShell({
+        data: renderSettingsData,
+        defaults: {
+            date: defaultDate,
+            time: defaultTime,
+        },
+        icons: {
+            add: getIcon("add"),
+            eye: getIcon("eye"),
+            logs: getIcon("logs"),
+            pay: getIcon("pay"),
+            refresh: getIcon("refresh"),
+            setting: getIcon("setting"),
+            wireless: getIcon("wireless"),
+        },
+    });
 
     saveInitialFormState();
+    bindSettingsPageEvents(app, {
+        onSubmit: saveSettings,
+        onToggleDrawer: toggleDrawer,
+        onToggleInput: toggleInputVisibility,
+        onNavigate: handleNavigation,
+        onAddWifi: addWifi,
+        onScanWifi: loadWifiList,
+    });
 
     const apPasswordInput = document.getElementById("APwifiPassword");
     const apPasswordConfirmationInput = document.getElementById("APConfwifiPassword");
@@ -2719,10 +1406,7 @@ async function renderSettings() {
 function saveInitialFormState() {
     const form = document.getElementById("settingsForm");
     if (form) {
-        const formData = new FormData(form);
-        initialFormState = JSON.stringify(
-            Object.fromEntries(formData.entries()),
-        );
+        initialFormState = serializeSettingsForm(new FormData(form));
     }
 }
 
@@ -2730,10 +1414,7 @@ function hasFormChanged() {
     const form = document.getElementById("settingsForm");
     if (!form || !initialFormState) return false;
 
-    const formData = new FormData(form);
-    const currentState = JSON.stringify(
-        Object.fromEntries(formData.entries()),
-    );
+    const currentState = serializeSettingsForm(new FormData(form));
 
     return initialFormState !== currentState;
 }
@@ -2744,11 +1425,16 @@ function validateSettingsForm(form) {
 
     if (!apPasswordInput || !apPasswordConfirmationInput) return true;
 
-    if (apPasswordInput.value !== apPasswordConfirmationInput.value) {
+    const validationError = validateApPasswordConfirmation(
+        apPasswordInput.value,
+        apPasswordConfirmationInput.value,
+    );
+
+    if (validationError) {
         const wifiDrawer = document.getElementById("wifi");
         if (wifiDrawer) wifiDrawer.style.display = "block";
 
-        apPasswordConfirmationInput.setCustomValidity("تکرار رمز عبور با رمز عبور جدید یکسان نیست.");
+        apPasswordConfirmationInput.setCustomValidity(validationError);
         apPasswordConfirmationInput.reportValidity();
         apPasswordConfirmationInput.focus();
 
@@ -2845,12 +1531,7 @@ function handleNavigation(targetPath) {
 }
 
 function getSignalBars(rssi) {
-    let level = 0;
-
-    if (rssi > -50) level = 4;
-    else if (rssi > -60) level = 3;
-    else if (rssi > -70) level = 2;
-    else level = 1;
+    const level = getWifiSignalLevel(rssi);
 
     return `
                   <div class="wifi-bars level-${level}">
@@ -2865,44 +1546,9 @@ function getSignalBars(rssi) {
 function addWifi() {
     if (!requirePermission(PERMISSIONS.WIFI_CONNECT)) return;
 
-    showModal({
+    const modal = showModal({
         message: `نام و رمز وای فای Hidden را وارد کنید `,
-
-        extraHtml: `
-                                  <div class="form-group" style="margin-top:15px">
-
-                                        <input
-                                              dir="ltr"
-                                              type="text"
-                                              id="hiddenWifiSsidModal"
-                                              placeholder="ssid"
-                                              style="flex:1"
-                                          >
-
-
-                                      <div style="display:flex;gap:6px;margin-top: 8px">
-
-                                          <button
-                                              type="button"
-                                              class="btn btn-outline"
-                                              style="width: 44px"
-                                            onclick="toggleInputVisibility('hiddenWifiPasswordModal')"
-                                          >
-                                              ${getIcon("eye")}
-                                          </button>
-
-                                          <input
-                                              dir="ltr"
-                                              type="password"
-                                              id="hiddenWifiPasswordModal"
-                                              placeholder="password"
-                                              style="flex:1"
-                                          >
-
-                                      </div>
-
-                                  </div>
-                                  `,
+        extraHtml: renderHiddenWifiModalExtra({eyeIcon: getIcon("eye")}),
 
         onConfirm: async (modal) => {
             const ssid = modal.querySelector("#hiddenWifiSsidModal").value;
@@ -2935,6 +1581,7 @@ function addWifi() {
             }
         },
     });
+    bindWifiModalEvents(modal, {onToggleInput: toggleInputVisibility});
 }
 
 async function loadWifiList() {
@@ -2959,7 +1606,7 @@ async function loadWifiList() {
             throw new TypeError("پاسخ اسکن وای‌فای دارای آرایه networks نیست.");
         }
 
-        const networks = [...payload.networks].sort((a, b) => b.rssi - a.rssi);
+        const networks = sortWifiNetworksBySignal(payload.networks);
 
         container.innerHTML = networks
             .map((net) => {
@@ -2969,7 +1616,7 @@ async function loadWifiList() {
                 return `
                                       <div class="wifi-item ${connected}"
                                            data-ssid="${net.ssid}"
-                                           onclick="selectWifi('${net.ssid}')">
+                                           data-wifi-ssid="${net.ssid}">
 
                                           <div class="wifi-left">
 
@@ -2991,6 +1638,7 @@ async function loadWifiList() {
                                     `;
             })
             .join("");
+        bindWifiListEvents(container, {onSelectWifi: selectWifi});
     } catch (err) {
 
         console.log('loadWifiList err ==>', err)
@@ -3008,35 +1656,9 @@ async function loadWifiList() {
 function selectWifi(ssid) {
     if (!requirePermission(PERMISSIONS.WIFI_CONNECT)) return;
 
-    showModal({
+    const modal = showModal({
         message: `رمز شبکه <b>${ssid}</b> را وارد کنید`,
-
-        extraHtml: `
-                                  <div class="form-group" style="margin-top:15px">
-
-                                      <div style="display:flex;gap:6px">
-
-                                          <button
-                                              type="button"
-                                              class="btn btn-outline"
-                                              style="width: 44px"
-                                            onclick="toggleInputVisibility('wifiPasswordModal')"
-                                          >
-                                              ${getIcon("eye")}
-                                          </button>
-
-                                          <input
-                                              dir="ltr"
-                                              type="password"
-                                              id="wifiPasswordModal"
-                                              placeholder="رمز وای فای"
-                                              style="flex:1"
-                                          >
-
-                                      </div>
-
-                                  </div>
-                                  `,
+        extraHtml: renderWifiPasswordModalExtra({eyeIcon: getIcon("eye")}),
 
         onConfirm: async (modal) => {
             const passInput = modal.querySelector("#wifiPasswordModal");
@@ -3068,6 +1690,7 @@ function selectWifi(ssid) {
             }
         },
     });
+    bindWifiModalEvents(modal, {onToggleInput: toggleInputVisibility});
 }
 
 function applySelectedWifi(ssid, password) {
@@ -3148,88 +1771,24 @@ async function renderPrices() {
         // }
     }
 
-    app.innerHTML = `
-                          <div class="card" style="padding-bottom: 80px">
-
-                              <div style="display: flex; align-items: center; justify-content: start; gap: 10px">
-                                  ${getIcon("server")}
-                                  <h2>مدیریت هوشمند کالاها</h2>
-                              </div>
-
-                              <div class="table-responsive">
-                                  <table>
-                                      <thead>
-                                          <tr>
-                                              <th class="col-index">کانال</th>
-                                              <th class="col-name">نام کالا</th>
-                                              <th class="col-qty">تعداد</th>
-                                              <th class="col-price">قیمت (تومان)</th>
-                                              <th class="col-settings">عملیات</th>
-                                          </tr>
-                                      </thead>
-                                      <tbody id="priceTable"></tbody>
-                                  </table>
-                              </div>
-
-                          </div>
-
-                          <div class="page-action-bar">
-                              <button class="btn" data-permission="prices.update" onclick="savePrices('submitBtnClicked')">ذخیره قیمت‌ها</button>
-                              <button class="btn btn-outline" onclick="location.hash='#/'">بازگشت</button>
-                          </div>
-                          `;
+    app.innerHTML = renderPricePageShell({serverIcon: getIcon("server")});
+    bindPricePageEvents(app, {
+        onSave: () => savePrices("submitBtnClicked"),
+        onBack: () => {
+            location.hash = "#/";
+        },
+    });
 
     const table = document.getElementById("priceTable");
 
-    for (let key in renderPricesData) {
-        const row = renderPricesData[key];
-        const isRowDisabled = !!row.disabledByServer;
-        const hasError = !!row.error;
-        const isHiddenInStore = row.visible === false;
-
-        const tr = document.createElement("tr");
-        if (isRowDisabled) tr.classList.add("row-disabled");
-        if (hasError) tr.classList.add("row-error");
-        if (isHiddenInStore) tr.classList.add("row-error");
-
-        const isLowStock = row.quantity > 0 && row.quantity <= 3;
-
-        tr.innerHTML = `
-                <td class="col-index">
-                    <span class="channel-badge ${hasError ? "channel-badge-error" : ""}">
-                        ${row.channel ?? "-"}
-                    </span>
-                </td>
-                <td class="col-name">
-                    <input onblur="saveFieldPrice(this)" data-permission="prices.update" data-permission-mode="disable" class="input-text" type="text" value="${row.name || "---"}" data-key="${key}" data-field="name" ${isRowDisabled ? "disabled" : ""}>
-                </td>
-                <td class="col-qty">
-                    <input
-                        onblur="saveFieldPrice(this)"
-                        data-permission="prices.update"
-                        data-permission-mode="disable"
-                        class="input-number ${isLowStock ? 'stock-warning' : ''}"
-                        type="number"
-                        value="${row.quantity || 0}"
-                        data-key="${key}"
-                        data-field="quantity"
-                        ${isRowDisabled ? "disabled" : ""}
-                        style="${isLowStock ? 'border: 1px solid #ffbf00; background-color: #fff2f0;' : ''}"
-                    >
-                </td>
-
-                <td class="col-price">
-                    <input class="input-number" onblur="saveFieldPrice(this)" data-permission="prices.update" data-permission-mode="disable" type="number" value="${row.price || 0}" data-key="${key}" data-field="price" step="1000" min="0" ${isRowDisabled ? "disabled" : ""}>
-                </td>
-
-                <td class="col-settings">
-                    <button class="btn-manage" data-permission="prices.update" data-permission-mode="disable" onclick="openAdvancedSettings('${key}')" ${isRowDisabled ? "disabled" : ""}>
-                        ${hasError ? getIcon("warning") : getIcon("setting")}
-                    </button>
-                </td>
-            `;
-        table.appendChild(tr);
-    }
+    renderPriceTableRows(table, renderPricesData, {
+        warning: getIcon("warning"),
+        setting: getIcon("setting"),
+    });
+    bindPriceTableEvents(table, {
+        onFieldBlur: saveFieldPrice,
+        onOpenSettings: openAdvancedSettings,
+    });
 
 }
 
@@ -3238,15 +1797,10 @@ function openAdvancedSettings(key) {
 
     const rowData = renderPricesData[key];
 
-    const rowName = rowData.name || "";
-    const rowPrice = rowData.price || 0;
-    const rowQty = rowData.quantity || 0;
-    const rowSize = String(rowData.size || "1");
-    const rowBarcode = rowData.barcode || "11123455556789";
-    const rowVisible = rowData.visible ?? true;
     const rowChannel = rowData.channel ?? "-";
     let rowError = rowData.error || "";
     const rowDisabledByServer = rowData.disabledByServer || "";
+    const rowVisible = rowData.visible ?? true;
 
     const modalHint = buildAdvancedHint({
         key,
@@ -3254,126 +1808,32 @@ function openAdvancedSettings(key) {
         error: rowError,
         disabledByServer: rowDisabledByServer,
         visible: rowVisible,
+        getAdvancedHintItems,
     });
 
-    const modalBody = `
-                      <div class="adv-modal">
-                          <div class="modal-product-icon">
-                          ${getIcon("products")}
-                          </div>
+    const modalBody = renderPriceAdvancedModalBody({
+        rowData,
+        modalHint,
+        productIcon: getIcon("products"),
+    });
 
-                          <p style="text-align: center; margin-bottom: 10px;">
-                             پیکربندی کانال ${rowChannel}
-                          </p>
-
-                          <div class="input-group">
-                              <label>تغییر نام</label>
-                              <input type="text" id="modalName" placeholder="نام محصول" value="${rowName}" class="input-text">
-                          </div>
-
-                          <div class="input-group">
-                              <label>بارکد کالا</label>
-                              <input
-                                  type="text"
-                                  id="modalBarcode"
-                                  value="${rowBarcode}"
-                                  class="input-text"
-                                  placeholder="بارکد محصول"
-                                  inputmode="numeric"
-                                  autocomplete="off"
-                              >
-                          </div>
-
-                          <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                              <div class="input-group">
-                                  <label>قیمت</label>
-                                  <input type="number" id="modalPrice" value="${rowPrice}" class="input-number">
-                              </div>
-
-                             <div class="input-group">
-                              <label>تعداد</label>
-
-                              <div class="qty-control">
-                                  <button type="button" class="qty-btn" onclick="changeQty(-1)">−</button>
-
-                                  <input
-                                      type="number"
-                                      id="modalQty"
-                                      value="${rowQty}"
-                                      class="input-number qty-input"
-                                      min="0"
-                                  >
-
-                                  <button type="button" class="qty-btn" onclick="changeQty(1)">+</button>
-                              </div>
-                          </div>
-
-                          </div>
-
-                          <div class="gift-section">
-                              <label>کانال‌های هدیه (10,11 ...)</label>
-                              <div class="gift-grid" style="display: flex; gap: 5px;">
-                                  <input type="number" id="gift1" placeholder="1" class="input-number" value="${rowData.gifts?.[0] || ""}">
-                                  <input type="number" id="gift2" placeholder="2" class="input-number" value="${rowData.gifts?.[1] || ""}">
-                                  <input type="number" id="gift3" placeholder="3" class="input-number" value="${rowData.gifts?.[2] || ""}">
-                              </div>
-                          </div>
-
-                          <div  class="input-group">
-                              <div class="toggle-row">
-                                  <span>غیر فعال سازی کانال</span>
-                                  <label class="switch">
-                                    <input
-                                        type="checkbox"
-                                        id="modalVisible"
-                                        ${rowVisible ? "checked" : ""}
-                                        ${rowError ? "disabled" : ""}
-                                    >
-                                    <span class="slider"></span>
-                                  </label>
-                              </div>
-                          </div>
-
-                        <div class="advanced-hint-box ${rowError ? "advanced-hint-error" : "hidden"}" id="advancedHintBox">
-                            ${modalHint}
-                        </div>
-
-                          <div class="input-group">
-                              <label>فضای اشغال شده (Slot Size)</label>
-                              <select
-                                  id="modalSize"
-                                  class="input-select"
-                                  onchange="checkPhysicalChange(event)"
-                                  data-prev-value="${rowSize}"
-                              >
-                                  <option value="1" ${rowSize === "1" ? "selected" : ""}>1 کانال (استاندارد)</option>
-                                  <option value="2" ${rowSize === "2" ? "selected" : ""}>2 کانال (عریض)</option>
-                                  <option value="3" ${rowSize === "3" ? "selected" : ""}>3 کانال (خیلی عریض)</option>
-                                  <option value="4" ${rowSize === "4" ? "selected" : ""}>4 کانال (کامل)</option>
-                              </select>
-                          </div>
-                      </div>
-                  `;
-
-    showModal({
+    const modal = showModal({
         message: modalBody,
         type: "noType",
         onConfirm: async (modal) => {
-            const finalData = {
-                id: rowData.id,
-                channel: rowChannel,
-                name: document.getElementById("modalName").value.trim(),
-                barcode: document.getElementById("modalBarcode").value.trim(),
-                price: Number(document.getElementById("modalPrice").value || 0),
-                quantity: Number(document.getElementById("modalQty").value || 0),
-                size: Number(document.getElementById("modalSize").value || 1),
+            const finalData = createAdvancedPricePayload(rowData, {
+                name: document.getElementById("modalName").value,
+                barcode: document.getElementById("modalBarcode").value,
+                price: document.getElementById("modalPrice").value,
+                quantity: document.getElementById("modalQty").value,
+                size: document.getElementById("modalSize").value,
                 visible: document.getElementById("modalVisible").checked,
                 gifts: [
                     document.getElementById("gift1").value.trim(),
                     document.getElementById("gift2").value.trim(),
                     document.getElementById("gift3").value.trim(),
                 ],
-            };
+            });
 
             renderPricesData[key] = {
                 ...renderPricesData[key],
@@ -3403,18 +1863,18 @@ function openAdvancedSettings(key) {
             modal.remove();
         },
     });
+    bindPriceAdvancedModalEvents(modal, {
+        onChangeQty: changeQty,
+        onPhysicalSizeChange: checkPhysicalChange,
+        onResolveError: resolveChannelError,
+    });
 }
 
 function changeQty(step) {
     const input = document.getElementById("modalQty");
+    if (!input) return;
 
-    let current = Number(input.value || 0);
-
-    current += step;
-
-    if (current < 0) current = 0;
-
-    input.value = current;
+    input.value = applyQuantityStep(input.value, step);
 }
 
 function resolveChannelError(key) {
@@ -3471,6 +1931,7 @@ function resolveChannelError(key) {
                         error: "",
                         disabledByServer: row.disabledByServer,
                         visible: row.visible,
+                        getAdvancedHintItems,
                     });
 
                     const modalVisibleCheckbox = document.getElementById("modalVisible");
@@ -3512,55 +1973,6 @@ function resolveChannelError(key) {
         },
     });
 }
-
-function buildAdvancedHint({
-                               key,
-                               channel,
-                               error,
-                               disabledByServer,
-                               visible,
-                           }) {
-    const hints = [];
-
-    hints.push(`<div><strong>کانال:</strong> ${channel}</div>`);
-
-    if (!visible) {
-        hints.push(
-            `<div>این کالا در حال حاضر در فروشگاه نمایش داده نمی‌شود.</div>`,
-        );
-    }
-
-    if (disabledByServer) {
-        hints.push(
-            `<div>این کانال به دلیل وضعیت فیزیکی یا تداخل با کانال دیگر غیرفعال شده است.</div>`,
-        );
-    }
-
-    if (error) {
-        hints.push(`
-                          <div class="advanced-hint-error-text">
-                              <strong>خطا:</strong> ${error}
-                          </div>
-                          <div class="advanced-hint-actions" style="margin-top:10px;">
-                              <button
-                                  class="btn btn-danger"
-                                  data-permission="prices.resolve_error"
-                                  type="button"
-                                  onclick="resolveChannelError('${key}')"
-                              >
-                                  رفع ایراد
-                              </button>
-                          </div>
-                      `);
-    } else {
-        hints.push(
-            `<div>وضعیت کانال در حال حاضر بدون خطا ثبت شده است.</div>`,
-        );
-    }
-
-    return hints.join("");
-}
-
 
 function checkPhysicalChange(event) {
     const select = event.target;
@@ -3618,84 +2030,17 @@ async function renderInfo() {
     }
 
 
-    const wifi = renderInfoData.wifi || {};
-    const lastOp = renderInfoData.last_operation || {};
+    app.innerHTML = renderInfoPageShell({
+        data: renderInfoData,
+        reportsIcon: getIcon("reports"),
+    });
 
-    app.innerHTML = `
-                          <div class="card">
-                          <div style="display: flex;justify-content: start;align-items: center; gap: 10px">
-                              ${getIcon("reports")}
-                              <h2> اطلاعات دستگاه</h2>
-                          </div>
-
-                              <div class="drawer">
-                                  <div class="drawer-summary" onclick="toggleDrawer('general-info')">اطلاعات کلی دستگاه</div>
-                                  <div class="drawer-content" id="general-info">
-                                      <div class="section">
-                                          ${infoItem("شماره سریال دستگاه", renderInfoData.SN)}
-                                          ${infoItem("نسخه نرم‌افزار ESP", renderInfoData.esp_version)}
-                                          ${infoItem("نسخه نرم‌افزار STM", renderInfoData.stm_version)}
-                                          ${infoItem("نسخه برد", renderInfoData.board_version)}
-                                          ${infoItem("نوع چیپ ESP", renderInfoData.esp_chip)}
-                                          ${infoItem("نوع چیپ STM", renderInfoData.stm_chip)}
-                                      </div>
-                                  </div>
-                              </div>
-
-                              <div class="drawer">
-                                  <div class="drawer-summary" onclick="toggleDrawer('memory-info')">اطلاعات حافظه دستگاه</div>
-                                  <div style="display: none" class="drawer-content" id="memory-info">
-                                      <div class="section">
-                                          ${infoItem("حافظه هیپ استفاده شده", renderInfoData.heap_used)}
-                                          ${infoItem("حافظه هیپ کل", renderInfoData.heap_total)}
-                                          ${infoItem("حافظه فلش استفاده شده", renderInfoData.flash_used)}
-                                          ${infoItem("حافظه فلش کل", renderInfoData.flash_total)}
-                                      </div>
-                                  </div>
-                              </div>
-
-                              <div class="drawer">
-                                  <div class="drawer-summary" onclick="toggleDrawer('wifi-sta-info')">وضعیت اتصال دستگاه به وای‌فای</div>
-                                  <div style="display: none" class="drawer-content" id="wifi-sta-info">
-                                      <div class="section">
-                                          ${infoItem("نام شبکه وای‌فای متصل شده", wifi.wifi_sta_ssid)}
-                                          ${infoItem("آدرس شبکه دستگاه", wifi.wifi_sta_ip)}
-                                          ${infoItem("وضعیت اتصال به وای‌فای", wifi.wifi_sta_connected)}
-                                          ${infoItem("شناسه سخت‌افزاری دستگاه (MAC)", wifi.mac)}
-                                          ${infoItem("قدرت سیگنال (RSSI)", wifi.rssi)}
-                                          ${infoItem("وضعیت سیستم", wifi.system_status)}
-                                      </div>
-                                  </div>
-                              </div>
-
-                              <div class="drawer">
-                                  <div class="drawer-summary" onclick="toggleDrawer('wifi-ap-info')">اطلاعات نقطه دسترسی دستگاه</div>
-                                  <div style="display: none" class="drawer-content" id="wifi-ap-info">
-                                      <div class="section">
-                                          ${infoItem("نام شبکه‌ای که دستگاه ایجاد کرده", wifi.wifi_ap_ssid)}
-                                          ${infoItem("آدرس شبکه این نقطه دسترسی", wifi.wifi_ap_ip)}
-                                          ${infoItem("تعداد دستگاه‌های متصل به این شبکه", wifi.wifi_ap_connected_devices)}
-                                      </div>
-                                  </div>
-                              </div>
-
-                              <div class="drawer">
-                                  <div class="drawer-summary" onclick="toggleDrawer('last-operation-info')">آخرین عملیات دستگاه</div>
-                                  <div style="display: none" class="drawer-content" id="last-operation-info">
-                                      <div class="section">
-                                          ${infoItem("عنوان عملیات", lastOp.title)}
-                                          ${infoItem("زمان عملیات", lastOp.time)}
-                                          ${infoItem("وضعیت عملیات", lastOp.status)}
-                                      </div>
-                                  </div>
-                              </div>
-                          </div>
-
-                         <div class="page-action-bar">
-                              <button class="btn btn-outline" onclick="location.hash='#/'">بازگشت</button>
-                          </div>
-              `;
-
+    bindDrawerPageEvents(app, {
+        onToggleDrawer: toggleDrawer,
+        onBack: () => {
+            location.hash = "#/";
+        },
+    });
 
 }
 
@@ -3720,7 +2065,7 @@ async function renderDevelop() {
 
     const iconsHTML = Object.entries(ICONS).map(([name, svg]) => `
             <div class="dev-icon-card"
-                 onclick="copyIconText('${name}')"
+                 data-dev-icon="${name}"
                  style="
                     display:flex;
                     flex-direction:column;
@@ -3781,10 +2126,16 @@ async function renderDevelop() {
             "></div>
 
             <div class="page-action-bar">
-                <button class="btn btn-outline" onclick="location.hash='#/'">بازگشت</button>
+                <button class="btn btn-outline" data-develop-back>بازگشت</button>
             </div>
         `;
 
+    bindDevelopPageEvents(app, {
+        onCopyIcon: copyIconText,
+        onBack: () => {
+            location.hash = "#/";
+        },
+    });
     showLoader(false);
 }
 
@@ -3798,82 +2149,17 @@ async function renderServiceConfiguration() {
         showLoader(false);
     }
 
-    app.innerHTML = `
-                              <div class="card" style="padding-bottom: 80px">
+    app.innerHTML = renderServiceConfigurationPageShell({
+        data: renderServiceConfigurationData,
+        settingIcon: getIcon("setting"),
+    });
 
-                                  <div style="display:flex;align-items:center;gap:10px">
-                                      ${getIcon("setting")}
-                                      <h2>تنظیمات سرویس دستگاه</h2>
-                                  </div>
-
-                                  <!-- PAYMENT SECTION -->
-
-                      <div class="drawer">
-                      <div class="drawer-summary" onclick="toggleDrawer('payment-config')">
-                      تنظیمات سیستم پرداخت
-                      </div>
-
-                      <div class="drawer-content" id="payment-config">
-
-                      <div class="section">
-                      ${infoItem("دستگاه سکه‌گیر", renderServiceConfigurationData.payment.coin_acceptor)}
-                      ${infoItem("اسکناس‌گیر", renderServiceConfigurationData.payment.bill_acceptor)}
-                      ${infoItem("پایانه کارتخوان", renderServiceConfigurationData.payment.pos_terminal)}
-                      ${infoItem("پرداخت کیف پول", renderServiceConfigurationData.payment.wallet_payment)}
-                      </div>
-
-                      </div>
-                      </div>
-
-
-                          <!-- AUXILIARY SECTION -->
-
-                      <div class="drawer">
-                      <div class="drawer-summary" onclick="toggleDrawer('auxiliary-config')">
-                      سیستم‌های جانبی دستگاه
-                      </div>
-
-                      <div style="display:none" class="drawer-content" id="auxiliary-config">
-
-                      <div class="section">
-                      ${infoItem("فن خنک‌کننده", renderServiceConfigurationData.auxiliary.cooling_fan)}
-                      ${infoItem("سیستم روشنایی", renderServiceConfigurationData.auxiliary.lighting_system)}
-                      ${infoItem("سنسور دما", renderServiceConfigurationData.auxiliary.temperature_sensor)}
-                      ${infoItem("سنسور درب دستگاه", renderServiceConfigurationData.auxiliary.door_sensor)}
-                      </div>
-
-                      </div>
-                      </div>
-
-
-                          <!-- ELEVATOR SECTION -->
-
-                      <div class="drawer">
-                      <div class="drawer-summary" onclick="toggleDrawer('elevator-config')">
-                      وضعیت آسانسور دستگاه
-                      </div>
-
-                      <div style="display:none" class="drawer-content" id="elevator-config">
-
-                      <div class="section">
-                      ${infoItem("فعال بودن آسانسور", renderServiceConfigurationData.elevator.elevator_enabled)}
-                      ${infoItem("وضعیت موتور آسانسور", renderServiceConfigurationData.elevator.elevator_motor_status)}
-                      ${infoItem("موقعیت فعلی آسانسور", renderServiceConfigurationData.elevator.elevator_position)}
-                      ${infoItem("سنسور موقعیت آسانسور", renderServiceConfigurationData.elevator.elevator_sensor)}
-                      </div>
-
-                      </div>
-                      </div>
-
-                      </div>
-
-                      <div class="page-action-bar">
-                      <button class="btn btn-outline" onclick="location.hash='#/'">
-                      بازگشت
-                      </button>
-                      </div>
-                      `;
-
+    bindDrawerPageEvents(app, {
+        onToggleDrawer: toggleDrawer,
+        onBack: () => {
+            location.hash = "#/";
+        },
+    });
 }
 
 async function savePrices(type = '') {
@@ -3959,144 +2245,34 @@ async function renderFactory() {
 
     const config = renderFactoryData;
 
-    app.innerHTML = `
-                      <div class="card">
-                      <h2>تنظیمات کارخانه (Factory)</h2>
-                      <form id="factoryForm">
-
-                          <!-- NETWORK -->
-                      <div class="drawer">
-                      <div class="drawer-summary" onclick="toggleDrawer('network')">شبکه و DNS</div>
-                      <div class="drawer-content" style="display: none" id="network">
-                      <div class="section">
-                      <label>DNS Server 1</label>
-                      <input type="text" name="dns1" value="${config.dns1 || "8.8.8.8"}">
-
-                      <label>DNS Server 2</label>
-                      <input type="text" name="dns2" value="${config.dns2 || "8.8.4.4"}">
-
-                      <div class="switch-row" style="margin-top:15px;">
-                      <span>تنظیمات IP دستی (Static)</span>
-                      <label class="switch">
-                      <input type="checkbox" id="manualIpToggle" name="use_static" ${config.use_static ? "checked" : ""} onchange="toggleManualIpFields()">
-                      <span class="slider"></span>
-                      </label>
-                      </div>
-
-                      <div id="manualIpFields" style="display: ${config.use_static ? "grid" : "none"}; gap:10px; margin-top:10px;">
-                      <input type="text" name="static_ip" value="${config.static_ip || ""}" placeholder="IP">
-                      <input type="text" name="static_gw" value="${config.static_gw || ""}" placeholder="Gateway">
-                      <input type="text" name="static_sn" value="${config.static_sn || ""}" placeholder="Subnet Mask">
-                      </div>
-                      </div>
-                      </div>
-                      </div>
-
-                          <!-- CORE -->
-                      <div class="drawer">
-                      <div class="drawer-summary" onclick="toggleDrawer('core')">هسته سیستم (Core)</div>
-                      <div class="drawer-content" style="display: none" id="core" style="display:block;">
-                      <div class="section">
-                      <label>شماره سریال (Serial Number)</label>
-                      <input type="text" name="serial" value="${config.serial || ""}">
-
-                      <div class="auth-box" style="background:var(--primary-surface); padding:15px; border-radius:10px; text-align:center; margin:10px 0;">
-                      <div id="authCode" style="font-size:24px; font-weight:bold; color:var(--primary); letter-spacing:5px;">----</div>
-                      <button type="button" class="btn-small" onclick="generateFactoryCode()">تولید کد تایید</button>
-                      </div>
-
-                      <label>کد تایید نهایی</label>
-                      <input type="number" name="sn_pass" id="input_sn_pass" placeholder="کد پشتیبان را وارد کنید">
-                      </div>
-                      </div>
-                      </div>
-
-                          <!-- MQTT -->
-                      <div class="drawer">
-                      <div class="drawer-summary" onclick="toggleDrawer('mqtt')">تنظیمات MQTT</div>
-                      <div class="drawer-content" style="display: none" id="mqtt">
-                      <div class="section">
-                      <input type="text" name="mqtt_host" value="${config.mqtt_host || ""}" placeholder="Broker Host">
-                      <input type="number" name="mqtt_port" value="${config.mqtt_port || 8883}" placeholder="Port">
-                      <input type="text" name="mqtt_topic" value="${config.mqtt_topic || ""}" placeholder="Topic">
-
-                      <div class="switch-row">
-                      <span>Auto TLS Certificate</span>
-                      <label class="switch">
-                      <input type="checkbox" id="mqttAuto" name="mqtt_auto" ${config.mqtt_auto ? "checked" : ""} onchange="toggleCert('mqtt')">
-                      <span class="slider"></span>
-                      </label>
-                      </div>
-                      <textarea id="mqttCert" name="mqtt_cert" rows="4" style="display:${config.mqtt_auto ? "none" : "block"};">${config.mqtt_cert || ""}</textarea>
-                      </div>
-                      </div>
-                      </div>
-
-                          <!-- OTA -->
-                      <div class="drawer">
-                      <div class="drawer-summary" onclick="toggleDrawer('ota')">آپدیت آنلاین (OTA)</div>
-                      <div class="drawer-content" style="display: none" id="ota">
-                      <div class="section">
-                      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                      <div>
-                      <label>Primary Server</label>
-                      <input type="text" name="ota_primary" value="${config.ota_primary || ""}" placeholder="سرور اصلی">
-                      </div>
-                      <div>
-                      <label>Secondary Server</label>
-                      <input type="text" name="ota_secondary" value="${config.ota_secondary || ""}" placeholder="سرور پشتیبان">
-                      </div>
-                      <div>
-                      <label>Version File</label>
-                      <input type="text" name="ota_version" value="${config.ota_version || ""}" placeholder="نسخه (مثلا version.json)">
-                      </div>
-                      <div>
-                      <label>Firmware File</label>
-                      <input type="text" name="ota_bin" value="${config.ota_bin || ""}" placeholder="فایل (مثلا firmware.bin)">
-                      </div>
-                      </div>
-
-                      <div class="switch-row" style="margin-top:15px;">
-                      <span>Auto TLS Certificate</span>
-                      <label class="switch">
-                      <input type="checkbox" id="otaAuto" name="ota_auto" ${config.ota_auto ? "checked" : ""} onchange="toggleCert('ota')">
-                      <span class="slider"></span>
-                      </label>
-                      </div>
-
-                      <textarea id="otaCert" name="ota_cert" rows="5"
-                      style="display:${config.ota_auto ? "none" : "block"}; margin-top:10px;">${config.ota_cert || ""}</textarea>
-                      </div>
-                      </div>
-                      </div>
-                      </form>
-                      </div>
-
-
-                      <div class="page-action-bar" >
-                      <button type="button" class="btn" data-permission="factory.update" onclick="saveFactorySettings()"> ذخیره تنظیمات</button>
-                      <button type="button" class="btn btn-outline" data-permission="factory.reset" style="border-color:var(--danger); color:var(--danger);" onclick="resetFactoryToDefault()">
-                      ریست فکتوری
-                      </button>
-                      <button class="btn btn-outline" onclick="location.href='#/settings'">بازگشت</button>
-                      </div>
-                      `;
+    app.innerHTML = renderFactoryPageShell(config);
 
     generateFactoryCode();
+    bindFactoryPageEvents(app, {
+        onToggleDrawer: toggleDrawer,
+        onToggleManualIp: toggleManualIpFields,
+        onToggleCert: toggleCert,
+        onGenerateCode: generateFactoryCode,
+        onSave: saveFactorySettings,
+        onReset: resetFactoryToDefault,
+        onBack: () => {
+            location.href = "#/settings";
+        },
+    });
 }
 
 function toggleManualIpFields() {
-    const isChecked = document.getElementById("manualIpToggle").checked;
-    document.getElementById("manualIpFields").style.display = isChecked
-        ? "grid"
-        : "none";
+    updateManualIpFields({
+        isChecked: document.getElementById("manualIpToggle").checked,
+        fields: document.getElementById("manualIpFields"),
+    });
 }
 
 function toggleCert(type) {
-    const isAuto = document.getElementById(type + "Auto").checked;
-    document.getElementById(type + "Cert").style.display = isAuto
-        ? "none"
-        : "block";
+    updateCertificateField({
+        isAuto: document.getElementById(type + "Auto").checked,
+        field: document.getElementById(type + "Cert"),
+    });
 }
 
 function generateFactoryCode() {
@@ -4108,11 +2284,10 @@ async function saveFactorySettings() {
     if (!requirePermission(PERMISSIONS.FACTORY_UPDATE)) return;
 
     const form = document.getElementById("factoryForm");
-    const formData = new FormData(form);
-    const data = Object.fromEntries(formData.entries());
-
-    data.use_static = document.getElementById("manualIpToggle").checked;
-    data.mqtt_auto = document.getElementById("mqttAuto").checked;
+    const data = createFactoryPayload(form, {
+        useStatic: document.getElementById("manualIpToggle").checked,
+        mqttAuto: document.getElementById("mqttAuto").checked,
+    });
 
     showLoader(true);
     const res = await api("/api/factory-save", "POST", data);
@@ -4167,21 +2342,14 @@ async function resetFactoryToDefault() {
 }
 
 function renderLogs() {
-    app.innerHTML = `
-                              <div class="card" style="padding-bottom: 80px">
-                                <div style="display: flex;justify-content: start;align-items: center; gap: 10px">
-                                  ${getIcon("logs")}
-                                  <h2>لاگ سیستمی</h2>
-                                </div>
-                                  <div id="logConnectionStatus" class="muted-text">در حال اتصال به سرویس لاگ...</div>
-                                  <div style="height:70vh; overflow:auto" id="logArea"></div>
-                              </div>
+    app.innerHTML = renderLogsPageShell({logsIcon: getIcon("logs")});
 
-                              <div class="page-action-bar">
-                                  <button class="btn btn-outline" onclick="location.href='#/settings'">بازگشت</button>
-                              </div>
-                      `;
-
+    bindDrawerPageEvents(app, {
+        onToggleDrawer: toggleDrawer,
+        onBack: () => {
+            location.href = "#/settings";
+        },
+    });
 
     const websocketProtocol = location.protocol === "https:" ? "wss:" : "ws:";
     const socket = new WebSocket(`${websocketProtocol}//${location.host}/ws`);

@@ -1,3 +1,21 @@
+import "./styles/auth.css";
+import {requestPublic} from "./shared/api/httpClient.js";
+import {
+    APP_MESSAGES,
+    OTP_LENGTH,
+    RESET_COUNTDOWN_SECONDS,
+    SUBMIT_LOCK_MS,
+} from "./features/auth/auth.constants.js";
+import {validateLogin, validatePasswordChange} from "./features/auth/auth.validation.js";
+import {
+    clearPasswordChangeUsername,
+    getAuthToken,
+    getPasswordChangeUsername,
+    saveAuthSession,
+    saveAuthToken,
+    savePasswordChangeUsername,
+} from "./features/auth/sessionStorage.js";
+
 (() => {
 
     //-------- Global Variables ------------
@@ -9,29 +27,6 @@
     // real release, but flipping it here would change behavior,
     // so it is intentionally untouched.
     const DEVELOP_MODE = import.meta.env.VITE_DEV_MODE === "true";
-
-    // OTP code length required by the /verify-otp endpoint.
-    const OTP_LENGTH = 4;
-
-    // How long the "forgot password" view polls /reset-status
-    // before giving up and returning to the login view.
-    const RESET_COUNTDOWN_SECONDS = 120;
-
-    // How long a submit button stays disabled after a login
-    // attempt, to prevent double-submits while the request/UI
-    // settles.
-    const SUBMIT_LOCK_MS = 3000;
-
-    // Minimum accepted password length for the password-login
-    // form (server is the source of truth; this is a fast
-    // client-side check only).
-    const MIN_LOGIN_PASSWORD_LENGTH = 6;
-
-    // Minimum accepted length when *setting* a new password
-    // (forced first-login change / forgot-password flow).
-    const MIN_NEW_PASSWORD_LENGTH = 8;
-
-    const IRAN_MOBILE_REGEX = /^09\d{9}$/;
 
     const state = {
         loginMode: "pass", countdownActive: false, resetPolling: null, secondsLeft: RESET_COUNTDOWN_SECONDS
@@ -58,32 +53,6 @@
         otpInputs: document.querySelectorAll(".otp-input")
     };
 
-
-    const APP_MESSAGES = Object.freeze({
-        auth: {
-            login_success: "ورود با موفقیت انجام شد",
-            repass_success: "رمز عبور با موفقیت بازیابی شد",
-            login_failed: "نام کاربری یا رمز عبور اشتباه است",
-            Too_many_requests: "بیش از حد تلاش کرده‌اید",
-            Unauthorized: "نام کاربری و رمز عبور صحیح نمیباشد",
-            otp_sent: "کد یکبار مصرف برای شما ارسال شد",
-            otp_invalid: "کد اشتباه است",
-            otp_incomplete: "کد کامل نیست",
-            change_password_required: "برای امنیت بیشتر رمز خود را عوض کنید",
-            password_changed: "رمز عبور با موفقیت تغییر یافت",
-            password_change_failed: "خطا در تغییر رمز عبور رخ داد",
-            password_invalid: "رمز اشتباه است"
-        }, validation: {
-            invalid_mobile: "شماره موبایل اشتباه است",
-            credentials_required: "نام کاربری و پسورد الزامی است",
-            password_too_short: "پسورد حداقل ۶ کاراکتر باید باشد",
-            all_fields_required: "همه فیلدها الزامی است",
-            new_password_too_short: "رمز جدید حداقل ۸ کاراکتر باید باشد",
-            passwords_do_not_match: "رمزها یکسان نیستند"
-        }
-    });
-
-
     // Exposed for the inline onclick="" handlers in the markup
     // above. Kept as-is (not switching to addEventListener) to
     // avoid touching markup/behavior beyond what's needed.
@@ -99,14 +68,13 @@
     if (DEVELOP_MODE) {
         showToast("شما در حالت توسعه میباشید و تا چند ثانیه دیگه وارد برنامه میشوید", "info", 7000)
         setTimeout(() => {
-            localStorage.setItem("rm_token", "9Myb7IagCZjdQDY9SACqEj7mNAThLXEg");
-            localStorage.setItem("rm_user", "admin");
+            saveAuthSession("9Myb7IagCZjdQDY9SACqEj7mNAThLXEg", "admin");
             location.reload()
         }, 7000)
     }
 
 
-    const token = localStorage.getItem('rm_token');
+    const token = getAuthToken();
 
     if (token) {
         window.location.href = "app.html";
@@ -117,32 +85,7 @@
        API LAYER
     ========================= */
 
-    async function api(endpoint, options = {}) {
-
-        const config = {
-            method: "GET", headers: {"Content-Type": "application/json"}, ...options
-        };
-
-        if (config.body && typeof config.body !== "string") {
-            config.body = JSON.stringify(config.body);
-        }
-
-        // const res = await fetch(API_BASE + endpoint, config);
-        const res = await fetch(endpoint, config);
-
-
-        if (!res.ok) {
-            throw new Error(`API_ERROR_${res.status}`);
-        }
-
-        const type = res.headers.get("content-type");
-
-        if (type?.includes("application/json")) {
-            return res.json();
-        }
-
-        return res.text();
-    }
+    const api = requestPublic;
 
 
     dom.username.focus()
@@ -309,25 +252,6 @@
        LOGIN SUBMISSION
     ========================= */
 
-    /**
-     * Fast client-side validation before hitting the network.
-     * Returns a Persian error message, or null when valid.
-     */
-    function validateLogin(username, password, isOtp) {
-        if (isOtp) {
-            if (!username) return APP_MESSAGES.validation.invalid_mobile;
-            if (!IRAN_MOBILE_REGEX.test(username)) return APP_MESSAGES.validation.invalid_mobile;
-            return null;
-        }
-
-        if (!username || !password) return APP_MESSAGES.validation.credentials_required;
-
-        if (password.length < MIN_LOGIN_PASSWORD_LENGTH) return APP_MESSAGES.validation.password_too_short;
-
-        return null;
-    }
-
-
     async function handleLoginSubmit(e) {
 
         e.preventDefault();
@@ -397,7 +321,7 @@
             if (response.isFirstTime) {
                 if (!username) return;
 
-                localStorage.setItem("username", username);
+                savePasswordChangeUsername(username);
                 showToast(APP_MESSAGES.auth.change_password_required, "info");
                 await showView("changePasswordView");
                 return;
@@ -405,8 +329,7 @@
 
             if (!response.token) return;
 
-            localStorage.setItem("rm_token", response.token);
-            localStorage.setItem("rm_user", JSON.stringify({role: response.role}));
+            saveAuthSession(response.token, {role: response.role});
             location.reload();
         } catch (error) {
             handleLoginError(error);
@@ -445,7 +368,7 @@
                 method: "POST", body: {code}
             });
 
-            localStorage.setItem("rm_token", res.token);
+            saveAuthToken(res.token);
 
             window.location.href = "app.html";
 
@@ -460,25 +383,12 @@
         const newPassword = document.getElementById("newPassword")?.value.trim();
         const confirmPassword = document.getElementById("confirmPassword")?.value.trim();
         const changePasswordButton = document.getElementById("changePasswordButton");
-        const username = localStorage.getItem("username");
+        const username = getPasswordChangeUsername();
 
-        if (!oldPassword || !newPassword || !confirmPassword) {
-            showToast(APP_MESSAGES.validation.all_fields_required, "error");
-            return;
-        }
+        const validationError = validatePasswordChange({oldPassword, newPassword, confirmPassword, username});
 
-        if (!username) {
-            showToast(APP_MESSAGES.auth.password_change_failed, "error");
-            return;
-        }
-
-        if (newPassword.length < MIN_NEW_PASSWORD_LENGTH) {
-            showToast(APP_MESSAGES.validation.new_password_too_short, "error");
-            return;
-        }
-
-        if (newPassword !== confirmPassword) {
-            showToast(APP_MESSAGES.validation.passwords_do_not_match, "error");
+        if (validationError) {
+            showToast(validationError, "error");
             return;
         }
 
@@ -500,7 +410,7 @@
                 return;
             }
 
-            localStorage.removeItem("username");
+            clearPasswordChangeUsername();
             showToast(APP_MESSAGES.auth.password_changed, "success");
 
             setTimeout(() => {
@@ -560,4 +470,3 @@
 
 
 })();
-
